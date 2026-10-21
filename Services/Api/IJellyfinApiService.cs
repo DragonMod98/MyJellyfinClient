@@ -23,6 +23,10 @@ public interface IJellyfinApiService
     Task<NextUpResponse> GetNextUpAsync([Header("Authorization")] string authHeader, string userId, string seriesId);
 
     // Holt die neuesten Filme und Serien des Nutzers
-    [Get("/Users/{userId}/Items?IncludeItemTypes=Movie,Series&Recursive=true&SortBy=DateCreated&SortOrder=Descending&Limit=50")]
+    [Get("/Users/{userId}/Items")]
     Task<JellyfinItemsResponse> GetLibraryItemsAsync([Header("Authorization")] string authHeader, string userId);
+
+    // Holt die Elemente des Unterordners
+    [Get("/Users/{userId}/Items?ParentId={selectedFolderId}")]
+    Task<JellyfinItemsResponse> GetFolderItemsAsync([Header("Authorization")] string authHeader, string userId, string selectedFolderId);
 }

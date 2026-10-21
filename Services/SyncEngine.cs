@@ -47,6 +47,7 @@ public class SyncEngine
 
             string currentUserId = _settings.UserId;
             string currentAuthToken = await _settings.GetAuthTokenAsync();
+            currentAuthToken = $"MediaBrowser Token=\"{currentAuthToken}\"";
 
             if (string.IsNullOrEmpty(currentUserId) || string.IsNullOrEmpty(currentAuthToken))
                 return; // Abbruch, wenn nicht eingeloggt

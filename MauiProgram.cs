@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using LibVLCSharp.MAUI;
 using MyJellyfinClient.Services;
 using MyJellyfinClient.Services.Api;
 using Refit;
@@ -12,10 +13,14 @@ namespace MyJellyfinClient
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                .UseLibVLCSharp() // Registriert den Handler für LibVLCSharp.MAUI.VideoView
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+                    // Icon-Fonts für die LibVLCSharp-Player-Steuerung
+                    fonts.AddFont("FontAwesome5Solid.otf", "FontAwesomeSolid");
+                    fonts.AddFont("FontAwesome5Brands.otf", "FontAwesomeBrands");
                 });
 
 #if DEBUG
@@ -31,11 +36,13 @@ namespace MyJellyfinClient
                .AddHttpMessageHandler<DynamicBaseUrlHandler>();
             builder.Services.AddSingleton<SyncEngine>();
             builder.Services.AddSingleton<StorageManager>();
+            builder.Services.AddSingleton<DownloadStarter>();
             builder.Services.AddSingleton<AutoDownloadManager>();
 
             builder.Services.AddTransient<MyJellyfinClient.ViewModels.LibraryViewModel>();
             builder.Services.AddTransient<MyJellyfinClient.ViewModels.SettingsViewModel>();
             builder.Services.AddTransient<MyJellyfinClient.ViewModels.MediaDetailViewModel>();
+            builder.Services.AddTransient<MyJellyfinClient.ViewModels.DownloadsViewModel>();
 
             builder.Services.AddTransient<MyJellyfinClient.Views.LibraryPage>();
             builder.Services.AddTransient<MyJellyfinClient.Views.MediaDetailPage>();

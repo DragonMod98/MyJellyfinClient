@@ -65,7 +65,7 @@ public class LocalDatabaseService
                               .ToListAsync();
     }
 
-    public async Task UpdatePlaybackProgressAsync(string itemId, long ticks, bool isWatched)
+    public async Task UpdatePlaybackProgressAsync(string itemId, long ticks, bool isWatched, long totalTicks = 0)
     {
         await InitAsync();
         var item = await GetMediaItemAsync(itemId);
@@ -73,6 +73,8 @@ public class LocalDatabaseService
         {
             item.ResumePositionTicks = ticks;
             item.IsWatched = isWatched;
+            if (totalTicks > 0)
+                item.TotalTicks = totalTicks; // Fuer den Fortschrittsbalken
             item.NeedsSyncToServer = true;
             item.LastPlayedOffline = DateTime.UtcNow;
 

@@ -12,12 +12,15 @@ namespace MyJellyfinClient.ViewModels;
 // automatisch in die Variablen "JellyfinItemId" und "MediaTitle" zu schreiben.
 [QueryProperty(nameof(JellyfinItemId), "ItemId")]
 [QueryProperty(nameof(MediaTitle), "Title")]
+[QueryProperty(nameof(SeriesName), "SeriesName")]
+[QueryProperty(nameof(SeasonName), "SeasonName")]
+[QueryProperty(nameof(IsSeriesText), "IsSeries")]
+[QueryProperty(nameof(RunTimeTicksText), "RunTimeTicks")]
 public partial class MediaDetailViewModel : ObservableObject
 {
     private readonly IJellyfinApiService _apiService;
-    private readonly IDownloadManager _downloadManager;
     private readonly ISettingsService _settings;
-    private readonly LocalDatabaseService _dbService;
+    private readonly DownloadStarter _downloadStarter;
 
     // UI Bindings
     [ObservableProperty]
@@ -26,41 +29,73 @@ public partial class MediaDetailViewModel : ObservableObject
     [ObservableProperty]
     private string jellyfinItemId;
 
+    // Metadaten aus der Bibliothek (fuer die Gruppierung der Downloads)
+    [ObservableProperty]
+    private string seriesName;
+
+    [ObservableProperty]
+    private string seasonName;
+
+    [ObservableProperty]
+    private string isSeriesText;
+
+    [ObservableProperty]
+    private string runTimeTicksText;
+
     public ObservableCollection<string> AvailableQualities { get; } = new();
 
     [ObservableProperty]
     private string selectedQuality;
 
-    public MediaDetailViewModel(IJellyfinApiService apiService, IDownloadManager downloadManager, LocalDatabaseService dbService, ISettingsService settings)
+    public MediaDetailViewModel(IJellyfinApiService apiService, DownloadStarter downloadStarter, ISettingsService settings)
     {
         _apiService = apiService;
-        _downloadManager = downloadManager;
-        _dbService = dbService;
+        _downloadStarter = downloadStarter;
         _settings = settings;
     }
 
     [RelayCommand]
     public async Task FetchDownloadOptionsAsync()
     {
-        string token = await _settings.GetAuthTokenAsync();
-        string currentUserId = _settings.UserId;
-        string baseUrl = $"{_settings.ServerUrl}/Items/{JellyfinItemId}/Download?api_key={token}";
+        // Original ist immer verfügbar, auch wenn der Server nicht antwortet
+        AvailableQualities.Clear();
+        AvailableQualities.Add("Original (Direct Play)");
+        SelectedQuality = AvailableQualities.First();
 
         try
         {
+            string token = await _settings.GetAuthTokenAsync();
+            string currentUserId = _settings.UserId;
+            string authHeader = $"MediaBrowser Token=\"{token}\"";
+
             // Manifest vom Server holen
-            var playbackInfoJson = await _apiService.GetPlaybackInfoAsync(token, JellyfinItemId, currentUserId);
+            var playbackInfoJson = await _apiService.GetPlaybackInfoAsync(authHeader, JellyfinItemId, currentUserId);
 
-            // Simples JSON Parsing für die verfügbaren MediaSources
+            // Höhe des Originalvideos ermitteln, um nur sinnvolle Optionen anzubieten
+            int height = 0;
             using var doc = JsonDocument.Parse(playbackInfoJson);
-            var mediaSources = doc.RootElement.GetProperty("MediaSources");
+            if (doc.RootElement.TryGetProperty("MediaSources", out var mediaSources)
+                && mediaSources.GetArrayLength() > 0
+                && mediaSources[0].TryGetProperty("MediaStreams", out var streams))
+            {
+                foreach (var stream in streams.EnumerateArray())
+                {
+                    if (stream.TryGetProperty("Type", out var type) && type.GetString() == "Video"
+                        && stream.TryGetProperty("Height", out var h) && h.ValueKind == JsonValueKind.Number)
+                    {
+                        height = h.GetInt32();
+                        break;
+                    }
+                }
+            }
 
-            AvailableQualities.Clear();
-            AvailableQualities.Add("Original (Direct Play)");
-            AvailableQualities.Add("1080p - 10 Mbps (Transcode)");
-            AvailableQualities.Add("720p - 4 Mbps (Transcode)");
-
-            SelectedQuality = AvailableQualities.First();
+            // Höhe unbekannt (0) => alle Optionen anbieten
+            if (height == 0 || height > 720)
+            {
+                if (height == 0 || height >= 1080)
+                    AvailableQualities.Add("1080p - 10 Mbps (Transcode)");
+                AvailableQualities.Add("720p - 4 Mbps (Transcode)");
+            }
         }
         catch (Exception ex)
         {
@@ -68,34 +103,43 @@ public partial class MediaDetailViewModel : ObservableObject
         }
     }
 
+
     [RelayCommand]
     public async Task StartDownloadAsync()
     {
-        string token = await _settings.GetAuthTokenAsync();
-        string currentUserId = _settings.UserId;
-        string baseUrl = $"{_settings.ServerUrl}/Items/{JellyfinItemId}/Download?api_key={token}";
+        // Transcoding-Parameter anhaengen, falls nicht "Original" gewaehlt wurde
+        // Ohne Auswahl (null) wird die Originaldatei geladen
+        string suffix = null;
+        if (SelectedQuality?.Contains("1080p") == true)
+            suffix = "&VideoBitrate=10000000&Width=1920";
+        else if (SelectedQuality?.Contains("720p") == true)
+            suffix = "&VideoBitrate=4000000&Width=1280";
 
-        // Transcoding-Parameter anhängen, falls nicht "Original" gewählt wurde
-        if (SelectedQuality.Contains("1080p"))
-        {
-            baseUrl += "&VideoBitrate=10000000&Width=1920";
-        }
-        else if (SelectedQuality.Contains("720p"))
-        {
-            baseUrl += "&VideoBitrate=4000000&Width=1280";
-        }
+        long.TryParse(RunTimeTicksText, out long runTimeTicks);
 
-        // In die lokale Datenbank eintragen, dass der Download startet
-        var localItem = new Models.LocalMediaItem
+        var request = new DownloadRequest
         {
-            JellyfinItemId = this.JellyfinItemId,
-            Title = this.MediaTitle,
-            ProfileId = currentUserId,
-            IsDownloaded = false // Wird vom Background-Service auf true gesetzt, wenn fertig
+            ItemId = JellyfinItemId,
+            Title = MediaTitle,
+            SeriesName = SeriesName,
+            SeasonName = SeasonName,
+            IsSeries = IsSeriesText == "true" || !string.IsNullOrEmpty(SeriesName),
+            RunTimeTicks = runTimeTicks
         };
-        await _dbService.SaveOrUpdateMediaItemAsync(localItem);
 
-        // An den Android Foreground Service übergeben
-        _downloadManager.StartDownload(JellyfinItemId, baseUrl, MediaTitle);
+        int started = await _downloadStarter.StartAsync(new[] { request }, suffix);
+
+        if (started < 0)
+        {
+            await Shell.Current.DisplayAlert("Download", "Server nicht erreichbar.", "OK");
+        }
+        else if (started == 0)
+        {
+            await Shell.Current.DisplayAlert("Download", "Dieses Medium ist bereits heruntergeladen.", "OK");
+        }
+        else
+        {
+            await Shell.Current.DisplayAlert("Download", $"Download von \"{MediaTitle}\" wurde gestartet. Den Fortschritt siehst du in der Benachrichtigung.", "OK");
+        }
     }
 }

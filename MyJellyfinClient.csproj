@@ -49,14 +49,13 @@
 
 	<ItemGroup>
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg"  Color="#10141D" ForegroundScale="0.65" />
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" Color="#10141D" ForegroundScale="0.65" />
 
 		<!-- Splash Screen -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#000b26" BaseSize="128,128" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
-		<MauiImage Update="Resources\Images\dotnet_bot.png" Resize="True" BaseSize="300,185" />
 		
 		<!-- Custom Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
@@ -70,6 +69,7 @@
 		<PackageReference Include="LibVLCSharp.MAUI" Version="3.10.2" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+		<PackageReference Include="Refit" Version="16.4.0" />
 		<PackageReference Include="Refit.HttpClientFactory" Version="16.4.0" />
 		<PackageReference Include="Refit.Reflection" Version="16.4.0" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.11.285" />
@@ -97,4 +97,10 @@
 	  </MauiXaml>
 	</ItemGroup>
 
+	<!-- Workaround für den Refit.Reflection TrimmerRootAssembly Bug im Android Release -->
+	<Target Name="FixRefitTrimmerAndroid" AfterTargets="ResolveReferences">
+		<ItemGroup>
+			<TrimmerRootAssembly Update="Refit.Reflection" RootMode="All" />
+		</ItemGroup>
+	</Target>
 </Project>

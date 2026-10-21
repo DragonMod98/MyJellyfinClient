@@ -5,7 +5,7 @@
     xmlns:vlc="clr-namespace:LibVLCSharp.MAUI;assembly=LibVLCSharp.MAUI"
     BackgroundColor="Black"
     Shell.NavBarIsVisible="False"
-    Shell.PresentationMode="ModalAnimated"
+    Shell.PresentationMode="Animated"
     Shell.TabBarIsVisible="False">
 
     <Grid>
@@ -15,8 +15,8 @@
             HorizontalOptions="Fill"
             VerticalOptions="Fill" />
 
-        <!--  Overlay für die Gestensteuerung  -->
-        <Grid BackgroundColor="Transparent">
+        <!--  Overlay für die Gestensteuerung (unten Platz für die Player-Controls lassen)  -->
+        <Grid BackgroundColor="Transparent" Margin="0,0,0,140">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <!--  Linke Hälfte: Helligkeit  -->
@@ -26,12 +26,14 @@
 
             <ContentView Grid.Column="0" BackgroundColor="Transparent">
                 <ContentView.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnScreenTapped" />
                     <PanGestureRecognizer PanUpdated="OnLeftScreenPanUpdated" />
                 </ContentView.GestureRecognizers>
             </ContentView>
 
             <ContentView Grid.Column="1" BackgroundColor="Transparent">
                 <ContentView.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnScreenTapped" />
                     <PanGestureRecognizer PanUpdated="OnRightScreenPanUpdated" />
                 </ContentView.GestureRecognizers>
             </ContentView>

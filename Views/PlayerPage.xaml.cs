@@ -3,11 +3,12 @@ using MyJellyfinClient.Services;
 
 namespace MyJellyfinClient.Views;
 
-public partial class PlayerPage : ContentPage
+public partial class PlayerPage : ContentPage, IQueryAttributable
 {
     private readonly LocalDatabaseService _dbService;
     private readonly IBrightnessService _brightnessService;
-    private readonly string _itemId;
+    private readonly ISettingsService _settings;
+    private string _itemId;
 
     private LibVLC _libVLC;
     private LibVLCSharp.Shared.MediaPlayer _mediaPlayer;
@@ -15,7 +16,7 @@ public partial class PlayerPage : ContentPage
 
     private readonly StorageManager _storageManager;
     private readonly AutoDownloadManager _autoDownloadManager;
-    private readonly string _seriesId; // Muss beim Aufruf des Players übergeben werden, falls es eine Serie ist
+    private string _seriesId; // Wird optional per Query-Parameter "seriesId" übergeben
     private bool _autoActionsTriggered = false; // Verhindert mehrfaches Triggern
 
     // Status der Gesten
@@ -24,12 +25,20 @@ public partial class PlayerPage : ContentPage
     private long _startSeekTime;
     private bool _isHorizontalSwipe;
 
-    public PlayerPage(string videoPath, string itemId, LocalDatabaseService dbService, IBrightnessService brightnessService)
+    // Parameter (videoPath, itemId) kommen per Shell-Navigation, nicht per Dependency Injection
+    public PlayerPage(
+        LocalDatabaseService dbService,
+        IBrightnessService brightnessService,
+        StorageManager storageManager,
+        AutoDownloadManager autoDownloadManager,
+        ISettingsService settings)
     {
         InitializeComponent();
         _dbService = dbService;
         _brightnessService = brightnessService;
-        _itemId = itemId;
+        _storageManager = storageManager;
+        _autoDownloadManager = autoDownloadManager;
+        _settings = settings;
 
         // VLC Initialisieren
         Core.Initialize();
@@ -37,14 +46,36 @@ public partial class PlayerPage : ContentPage
         _mediaPlayer = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
         VideoPlayer.MediaPlayer = _mediaPlayer;
 
-        // Lokale Datei laden (Für Online-Streams nutzt man FromType.FromLocation)
-        var media = new Media(_libVLC, videoPath, FromType.FromPath);
-        _mediaPlayer.Media = media;
-
         // Tracking Timer initialisieren
         _trackingTimer = Application.Current.Dispatcher.CreateTimer();
         _trackingTimer.Interval = TimeSpan.FromSeconds(5);
         _trackingTimer.Tick += TrackingTimer_Tick;
+    }
+
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        if (query.TryGetValue("itemId", out var id))
+            _itemId = id?.ToString();
+
+        if (query.TryGetValue("seriesId", out var sid))
+            _seriesId = sid?.ToString();
+
+        if (query.TryGetValue("videoPath", out var path) && path is string videoPath)
+        {
+            // Lokale Datei laden (Für Online-Streams nutzt man FromType.FromLocation)
+            _mediaPlayer.Media = new Media(_libVLC, videoPath, FromType.FromPath);
+        }
+    }
+
+    // Zurück-Geste/-Taste: zurück zur vorherigen Seite (Downloads) statt App beenden
+    protected override bool OnBackButtonPressed()
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try { await Shell.Current.GoToAsync(".."); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Zurück-Navigation fehlgeschlagen: {ex.Message}"); }
+        });
+        return true;
     }
 
     protected override async void OnAppearing()
@@ -53,10 +84,12 @@ public partial class PlayerPage : ContentPage
 
         // Letzten Offline-Fortschritt laden
         var item = await _dbService.GetMediaItemAsync(_itemId);
-        if (item != null && item.ResumePositionTicks > 0)
+        if (item != null && item.ResumePositionTicks > 0 && !item.IsWatched)
         {
-            // Jellyfin Ticks (10.000 Ticks = 1 ms) zu VLC Millisekunden konvertieren
-            _mediaPlayer.Time = item.ResumePositionTicks / 10000;
+            // Jellyfin Ticks (10.000.000 Ticks = 1 s). Ein Setzen von Time VOR dem Abspielen
+            // wird von VLC ignoriert, daher als Start-Option an das Medium haengen.
+            double startSeconds = item.ResumePositionTicks / 10_000_000.0;
+            _mediaPlayer.Media?.AddOption($":start-time={startSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}");
         }
 
         _mediaPlayer.Play();
@@ -66,17 +99,43 @@ public partial class PlayerPage : ContentPage
         _brightnessService.SetBrightness(_currentBrightness);
     }
 
-    protected override void OnDisappearing()
+    private bool _isClosing;
+    private bool _playerReleased;
+
+    protected override async void OnDisappearing()
     {
         base.OnDisappearing();
+        if (_isClosing) return;
+        _isClosing = true;
+
         _trackingTimer.Stop();
+        _trackingTimer.Tick -= TrackingTimer_Tick;
 
-        // Letzten Stand sicher in die DB schreiben
-        SaveProgressAsync().ConfigureAwait(false);
+        var player = _mediaPlayer;
+        var libVlc = _libVLC;
 
-        _mediaPlayer.Stop();
-        _mediaPlayer.Dispose();
-        _libVLC.Dispose();
+        // Fortschritt sichern, solange der Player noch gültig ist
+        try { await SaveProgressAsync(); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Fortschritt speichern fehlgeschlagen: {ex.Message}"); }
+
+        // Das MediaPlayerElement darf den Player nicht mehr verwenden (sonst nativer VLC-Crash)
+        VideoPlayer.MediaPlayer = null;
+        _playerReleased = true;
+
+        // Native Objekte nicht auf dem UI-Thread freigeben
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                player.Stop();
+                player.Dispose();
+                libVlc.Dispose();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"VLC Aufräumen fehlgeschlagen: {ex.Message}");
+            }
+        });
     }
 
     // --- Offline Progress Tracking ---
@@ -87,6 +146,7 @@ public partial class PlayerPage : ContentPage
 
     private async Task SaveProgressAsync()
     {
+        if (_playerReleased) return;
         if (_mediaPlayer.Time <= 0 || _mediaPlayer.Length <= 0) return;
 
         long currentTicks = _mediaPlayer.Time * 10000;
@@ -95,15 +155,14 @@ public partial class PlayerPage : ContentPage
         // Ab 90% gilt der Film/die Folge als vollständig gesehen
         bool isWatched = currentTicks >= (totalLengthTicks * 0.9);
 
-        await _dbService.UpdatePlaybackProgressAsync(_itemId, currentTicks, isWatched);
+        await _dbService.UpdatePlaybackProgressAsync(_itemId, currentTicks, isWatched, totalLengthTicks);
 
         if (isWatched && !_autoActionsTriggered)
         {
             _autoActionsTriggered = true;
 
-            // TODO: Aktuelle Nutzer-Daten aus dem Auth-Service holen
-            string currentUserId = "USER_ID_PLACEHOLDER";
-            string currentAuthToken = "MediaBrowser Token=\"YOUR_TOKEN\"";
+            string currentUserId = _settings.UserId;
+            string currentAuthToken = $"MediaBrowser Token=\"{await _settings.GetAuthTokenAsync()}\"";
 
             // 1. Auto-Download der nächsten Folge anstoßen (falls es eine Serie ist)
             if (!string.IsNullOrEmpty(_seriesId))
@@ -121,6 +180,12 @@ public partial class PlayerPage : ContentPage
                 await _storageManager.CleanupWatchedItemsAsync(currentUserId);
             });
         }
+    }
+
+    // --- Tippen blendet die VLC-Controls ein (blenden sich selbst wieder aus) ---
+    private void OnScreenTapped(object sender, TappedEventArgs e)
+    {
+        VideoPlayer.PlaybackControls?.Show();
     }
 
     // --- Gestensteuerung (Linke Bildschirmhälfte) ---

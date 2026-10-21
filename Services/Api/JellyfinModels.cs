@@ -21,7 +21,14 @@ public class PlaybackProgressInfo
         public string Id { get; set; }
         public string Name { get; set; }
         public string SeriesName { get; set; }
+        public string SeasonName { get; set; }
+        public int? IndexNumber { get; set; }        // Folgennummer
+        public long? RunTimeTicks { get; set; }      // Laufzeit (fuer den Fortschrittsbalken)
         public string Type { get; set; } // z.B. "Movie" oder "Series"
+        public bool IsFolder { get; set; }
+
+        // Titel inkl. Folgennummer, z.B. "3. Der Titel"
+        public string DisplayTitle => IndexNumber.HasValue ? $"{IndexNumber}. {Name}" : Name;
 
         // Eigene Property, die wir später für das UI-Binding mit der Bild-URL füllen
         public string ImageUrl { get; set; }

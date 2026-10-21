@@ -5,19 +5,32 @@
     x:Name="LibraryPageRoot"
     Title="Bibliothek">
 
-    <Grid>
-        <!--  Lade-Indikator (Kreis), solange die API arbeitet  -->
-        <ActivityIndicator
-            HorizontalOptions="Center"
-            IsRunning="{Binding IsLoading}"
-            IsVisible="{Binding IsLoading}"
-            VerticalOptions="Center"
-            Color="{StaticResource Primary}" />
+    <Grid RowDefinitions="Auto,*">
+        <!--  Navigationsleiste im Unterordner: Zurück + (bei Folgen/Videos) Alle herunterladen  -->
+        <HorizontalStackLayout
+            Grid.Row="0"
+            Margin="12,8"
+            IsVisible="{Binding IsInSubFolder}"
+            Spacing="10">
+            <Button
+                BackgroundColor="#2A2E3D"
+                Command="{Binding GoBackCommand}"
+                Text="← Zurück"
+                TextColor="White" />
+            <Button
+                BackgroundColor="#AA5CC3"
+                Command="{Binding DownloadFolderCommand}"
+                IsVisible="{Binding CanDownloadFolder}"
+                Text="⬇ Alle herunterladen"
+                TextColor="White" />
+        </HorizontalStackLayout>
 
         <!--  Offline Banner  -->
         <Border
+            Grid.Row="1"
             Margin="10"
             Padding="15"
+            VerticalOptions="Start"
             BackgroundColor="#E5A00D"
             IsVisible="{Binding IsOfflineMode}"
             StrokeShape="RoundRectangle 8">
@@ -43,7 +56,10 @@
         </Border>
 
         <!--  Kachel-Ansicht für die Filme (Wird nur angezeigt, wenn IsLoading = false)  -->
-        <CollectionView Margin="10" ItemsSource="{Binding LibraryItems}">
+        <CollectionView
+            Grid.Row="1"
+            Margin="10"
+            ItemsSource="{Binding LibraryItems}">
 
             <CollectionView.ItemsLayout>
                 <!--  3 Spalten Layout für Film-Poster  -->
@@ -56,17 +72,15 @@
 
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Frame
+                    <Border
                         Padding="0"
                         BackgroundColor="{StaticResource SurfaceBackground}"
-                        CornerRadius="8"
-                        HasShadow="False"
                         HeightRequest="180">
 
                         <!--  Klick-Erkennung  -->
-                        <Frame.GestureRecognizers>
+                        <Border.GestureRecognizers>
                             <TapGestureRecognizer Command="{Binding Source={x:Reference LibraryPageRoot}, Path=BindingContext.GoToDetailsCommand}" CommandParameter="{Binding .}" />
-                        </Frame.GestureRecognizers>
+                        </Border.GestureRecognizers>
 
                         <Grid RowDefinitions="*, Auto">
                             <!--  Film Poster laden  -->
@@ -88,10 +102,19 @@
                                     TextColor="White" />
                             </Border>
                         </Grid>
-                    </Frame>
+                    </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
 
         </CollectionView>
+
+        <!--  Lade-Indikator ganz am Ende = im Vordergrund  -->
+        <ActivityIndicator
+            Grid.Row="1"
+            HorizontalOptions="Center"
+            IsRunning="{Binding IsLoading}"
+            IsVisible="{Binding IsLoading}"
+            VerticalOptions="Center"
+            Color="{StaticResource Primary}" />
     </Grid>
 </ContentPage>
