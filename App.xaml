@@ -1,0 +1,61 @@
+﻿<Application
+    x:Class="MyJellyfinClient.App"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <Application.Resources>
+        <ResourceDictionary>
+
+            <!--  1. Jellyfin Farbpalette  -->
+            <Color x:Key="Primary">#AA5CC3</Color>
+            <!--  Violett  -->
+            <Color x:Key="Secondary">#00A4DC</Color>
+            <!--  Cyan  -->
+            <Color x:Key="AppBackground">#10141D</Color>
+            <!--  Sehr dunkles Blau/Schwarz  -->
+            <Color x:Key="SurfaceBackground">#1B2230</Color>
+            <!--  Hintergrund für Cards/Borders  -->
+            <Color x:Key="TextColorPrimary">#FFFFFF</Color>
+            <!--  Weiß  -->
+            <Color x:Key="TextColorSecondary">#A0A0A0</Color>
+            <!--  Grau  -->
+            <Color x:Key="OfflineGold">#E5A00D</Color>
+            <!--  Gelb/Gold für Offline-Status  -->
+
+            <!--  2. Globale Styles  -->
+
+            <!--  Jede ContentPage bekommt automatisch den dunklen Hintergrund  -->
+            <Style TargetType="Page">
+                <Setter Property="BackgroundColor" Value="{StaticResource AppBackground}" />
+            </Style>
+
+            <!--  Standard-Textfarbe ist Weiß  -->
+            <Style TargetType="Label">
+                <Setter Property="TextColor" Value="{StaticResource TextColorPrimary}" />
+            </Style>
+
+            <!--  Alle Buttons sehen direkt nach Jellyfin aus  -->
+            <Style TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                <Setter Property="TextColor" Value="{StaticResource TextColorPrimary}" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="HeightRequest" Value="48" />
+            </Style>
+
+            <!--  Text-Eingabefelder (wie in den Settings)  -->
+            <Style TargetType="Entry">
+                <Setter Property="BackgroundColor" Value="{StaticResource SurfaceBackground}" />
+                <Setter Property="TextColor" Value="{StaticResource TextColorPrimary}" />
+                <Setter Property="PlaceholderColor" Value="{StaticResource TextColorSecondary}" />
+            </Style>
+
+            <!--  Rahmen für Cards  -->
+            <Style TargetType="Border">
+                <Setter Property="Stroke" Value="Transparent" />
+                <Setter Property="BackgroundColor" Value="{StaticResource SurfaceBackground}" />
+            </Style>
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

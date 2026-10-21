@@ -1,0 +1,56 @@
+<ContentPage
+    x:Class="MyJellyfinClient.Views.PlayerPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vlc="clr-namespace:LibVLCSharp.MAUI;assembly=LibVLCSharp.MAUI"
+    BackgroundColor="Black"
+    Shell.NavBarIsVisible="False"
+    Shell.PresentationMode="ModalAnimated"
+    Shell.TabBarIsVisible="False">
+
+    <Grid>
+        <!--  Die native VLC Engine  -->
+        <vlc:MediaPlayerElement
+            x:Name="VideoPlayer"
+            HorizontalOptions="Fill"
+            VerticalOptions="Fill" />
+
+        <!--  Overlay für die Gestensteuerung  -->
+        <Grid BackgroundColor="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <!--  Linke Hälfte: Helligkeit  -->
+                <ColumnDefinition Width="*" />
+                <!--  Rechte Hälfte: Lautstärke  -->
+            </Grid.ColumnDefinitions>
+
+            <ContentView Grid.Column="0" BackgroundColor="Transparent">
+                <ContentView.GestureRecognizers>
+                    <PanGestureRecognizer PanUpdated="OnLeftScreenPanUpdated" />
+                </ContentView.GestureRecognizers>
+            </ContentView>
+
+            <ContentView Grid.Column="1" BackgroundColor="Transparent">
+                <ContentView.GestureRecognizers>
+                    <PanGestureRecognizer PanUpdated="OnRightScreenPanUpdated" />
+                </ContentView.GestureRecognizers>
+            </ContentView>
+        </Grid>
+
+        <!--  OSD (On Screen Display) für Feedback  -->
+        <Border
+            x:Name="OsdContainer"
+            Padding="20,10"
+            BackgroundColor="#80000000"
+            HorizontalOptions="Center"
+            IsVisible="False"
+            StrokeShape="RoundRectangle 10"
+            VerticalOptions="Center">
+            <Label
+                x:Name="OsdText"
+                FontAttributes="Bold"
+                FontSize="32"
+                TextColor="White" />
+        </Border>
+    </Grid>
+</ContentPage>

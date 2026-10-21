@@ -1,0 +1,29 @@
+<ContentPage
+    x:Class="MyJellyfinClient.Views.LibraryPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Jellyfin Bibliothek">
+
+    <!--  Ein Platzhalter, bis wir die API-Daten laden  -->
+    <Grid>
+        <VerticalStackLayout
+            HorizontalOptions="Center"
+            Spacing="10"
+            VerticalOptions="Center">
+            <Label
+                FontSize="64"
+                HorizontalOptions="Center"
+                Text="🎬" />
+            <Label
+                FontAttributes="Bold"
+                FontSize="24"
+                HorizontalOptions="Center"
+                Text="Online Bibliothek" />
+            <Label
+                HorizontalOptions="Center"
+                Text="Hier erscheinen bald deine Filme &amp; Serien vom Server."
+                TextColor="{StaticResource TextColorSecondary}" />
+        </VerticalStackLayout>
+    </Grid>
+
+</ContentPage>

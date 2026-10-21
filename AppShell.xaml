@@ -1,0 +1,32 @@
+<Shell
+    x:Class="MyJellyfinClient.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:MyJellyfinClient.Views"
+    Title="MyJellyfinClient"
+    BackgroundColor="#10141D"
+    TabBarBackgroundColor="#1B2230"
+    TabBarTitleColor="White"
+    TabBarUnselectedColor="#A0A0A0">
+
+    <!--  Bottom Navigation Bar  -->
+    <TabBar>
+
+        <!--  Tab 1: Die Hauptbibliothek (Diese Seite musst du ggf. noch als leere ContentPage anlegen)  -->
+        <Tab Title="Bibliothek" Icon="home.png">
+            <ShellContent ContentTemplate="{DataTemplate views:LibraryPage}" Route="LibraryPage" />
+        </Tab>
+
+        <!--  Tab 2: Unsere erstellte Offline-Übersicht  -->
+        <Tab Title="Downloads" Icon="download.png">
+            <ShellContent ContentTemplate="{DataTemplate views:DownloadsPage}" Route="DownloadsPage" />
+        </Tab>
+
+        <!--  Tab 3: Unsere erstellten Einstellungen  -->
+        <Tab Title="Settings" Icon="settings.png">
+            <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" Route="SettingsPage" />
+        </Tab>
+
+    </TabBar>
+
+</Shell>

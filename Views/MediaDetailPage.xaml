@@ -1,0 +1,51 @@
+<ContentPage
+    x:Class="MyJellyfinClient.Views.MediaDetailPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Details"
+    BackgroundColor="#10141D">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+
+            <Label
+                FontAttributes="Bold"
+                FontSize="24"
+                Text="{Binding MediaTitle}"
+                TextColor="White" />
+
+            <Border
+                Padding="15"
+                BackgroundColor="#1B2230"
+                StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="15">
+                    <Label
+                        FontAttributes="Bold"
+                        Text="Offline bereitstellen"
+                        TextColor="White" />
+
+                    <Label
+                        FontSize="14"
+                        Text="Qualität auswählen:"
+                        TextColor="#A0A0A0" />
+                    <Picker
+                        Title="Qualität wählen"
+                        BackgroundColor="#2D323E"
+                        ItemsSource="{Binding AvailableQualities}"
+                        SelectedItem="{Binding SelectedQuality}"
+                        TextColor="White" />
+
+                    <!--  Der Button ruft das StartDownloadAsync Command im ViewModel auf  -->
+                    <Button
+                        BackgroundColor="#AA5CC3"
+                        Command="{Binding StartDownloadCommand}"
+                        CornerRadius="8"
+                        FontAttributes="Bold"
+                        Text="Herunterladen"
+                        TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

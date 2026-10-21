@@ -1,0 +1,73 @@
+<ContentPage
+    x:Class="MyJellyfinClient.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Einstellungen"
+    BackgroundColor="#10141D">
+
+    <ScrollView Padding="20">
+        <VerticalStackLayout Spacing="20">
+
+            <Border
+                Padding="15"
+                BackgroundColor="#1B2230"
+                StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="15">
+                    <Label
+                        FontAttributes="Bold"
+                        FontSize="18"
+                        Text="Server Verbindung"
+                        TextColor="White" />
+
+                    <VerticalStackLayout Spacing="5">
+                        <Label
+                            FontSize="14"
+                            Text="Jellyfin Server URL"
+                            TextColor="#A0A0A0" />
+                        <Entry
+                            BackgroundColor="#2D323E"
+                            Keyboard="Url"
+                            Placeholder="https://dein-server.com"
+                            Text="{Binding ServerUrlInput}"
+                            TextColor="White" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="5">
+                        <Label
+                            FontSize="14"
+                            Text="Benutzer ID"
+                            TextColor="#A0A0A0" />
+                        <Entry
+                            BackgroundColor="#2D323E"
+                            Placeholder="User ID aus Jellyfin"
+                            Text="{Binding UserIdInput}"
+                            TextColor="White" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="5">
+                        <Label
+                            FontSize="14"
+                            Text="Auth Token"
+                            TextColor="#A0A0A0" />
+                        <Entry
+                            BackgroundColor="#2D323E"
+                            IsPassword="True"
+                            Placeholder="MediaBrowser Token=..."
+                            Text="{Binding AuthTokenInput}"
+                            TextColor="White" />
+                    </VerticalStackLayout>
+
+                    <Button
+                        Margin="0,10,0,0"
+                        BackgroundColor="#AA5CC3"
+                        Command="{Binding SaveSettingsCommand}"
+                        CornerRadius="8"
+                        FontAttributes="Bold"
+                        Text="Speichern"
+                        TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
