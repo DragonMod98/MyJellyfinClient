@@ -8,6 +8,10 @@ using static MyJellyfinClient.Models.LocalMediaItem;
 
 namespace MyJellyfinClient.ViewModels;
 
+// Diese Attribute weisen MAUI an, die übergebenen Shell-Parameter 
+// automatisch in die Variablen "JellyfinItemId" und "MediaTitle" zu schreiben.
+[QueryProperty(nameof(JellyfinItemId), "ItemId")]
+[QueryProperty(nameof(MediaTitle), "Title")]
 public partial class MediaDetailViewModel : ObservableObject
 {
     private readonly IJellyfinApiService _apiService;

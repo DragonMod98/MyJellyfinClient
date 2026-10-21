@@ -1,5 +1,6 @@
 ﻿using Refit;
 using static MyJellyfinClient.Models.LocalMediaItem;
+using static MyJellyfinClient.Services.Api.PlaybackProgressInfo;
 
 namespace MyJellyfinClient.Services.Api;
 
@@ -20,4 +21,8 @@ public interface IJellyfinApiService
     // Holt die Empfehlungen (Next Up) für einen Nutzer basierend auf der aktuellen Serie
     [Get("/Shows/NextUp?userId={userId}&seriesId={seriesId}")]
     Task<NextUpResponse> GetNextUpAsync([Header("Authorization")] string authHeader, string userId, string seriesId);
+
+    // Holt die neuesten Filme und Serien des Nutzers
+    [Get("/Users/{userId}/Items?IncludeItemTypes=Movie,Series&Recursive=true&SortBy=DateCreated&SortOrder=Descending&Limit=50")]
+    Task<JellyfinItemsResponse> GetLibraryItemsAsync([Header("Authorization")] string authHeader, string userId);
 }
