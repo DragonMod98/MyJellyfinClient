@@ -53,6 +53,7 @@ Stelle sicher, dass folgende Pakete im Projekt installiert sind:
    - **Auth Token** (In Jellyfin einen API-Schlüssel für diesen Client generieren)
 3. Speichern klicken. Die Bibliothek lädt nun automatisch unter Berücksichtigung des Connection Managers.
 
+***
 
 ## Entwickler-Dokumentation: MyJellyfinClient 🛠️
 
