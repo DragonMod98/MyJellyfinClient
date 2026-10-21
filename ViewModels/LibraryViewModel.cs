@@ -18,6 +18,9 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private bool isLoading;
 
+    [ObservableProperty]
+    private bool isOfflineMode;
+
     public LibraryViewModel(IJellyfinApiService apiService, ISettingsService settingsService)
     {
         _apiService = apiService;
@@ -30,6 +33,7 @@ public partial class LibraryViewModel : ObservableObject
         if (IsLoading) return;
 
         IsLoading = true;
+        IsOfflineMode = false;
         try
         {
             string userId = _settingsService.UserId;
@@ -53,6 +57,11 @@ public partial class LibraryViewModel : ObservableObject
                     LibraryItems.Add(item);
                 }
             }
+        }
+        catch (HttpRequestException ex) when (ex.Message == "OfflineMode")
+        {
+            IsOfflineMode = true; // Setzt das UI auf Offline
+            LibraryItems.Clear();
         }
         catch (Exception ex)
         {

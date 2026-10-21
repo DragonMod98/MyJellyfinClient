@@ -12,6 +12,9 @@ public partial class SettingsViewModel : ObservableObject
     private string serverUrlInput;
 
     [ObservableProperty]
+    private string backupServerUrlInput;
+
+    [ObservableProperty]
     private string userIdInput;
 
     [ObservableProperty]
@@ -26,6 +29,7 @@ public partial class SettingsViewModel : ObservableObject
     private async void LoadSettingsAsync()
     {
         ServerUrlInput = _settingsService.ServerUrl;
+        BackupServerUrlInput = _settingsService.BackupServerUrl;
         UserIdInput = _settingsService.UserId;
         AuthTokenInput = await _settingsService.GetAuthTokenAsync();
     }
@@ -34,8 +38,11 @@ public partial class SettingsViewModel : ObservableObject
     public async Task SaveSettingsAsync()
     {
         _settingsService.ServerUrl = ServerUrlInput;
+        _settingsService.BackupServerUrl = BackupServerUrlInput;
         _settingsService.UserId = UserIdInput;
         await _settingsService.SetAuthTokenAsync(AuthTokenInput);
+
+        IPlatformApplication.Current?.Services.GetService<ServerConnectionService>()?.ResetCache();
 
         // Optional: Kleines visuelles Feedback
         await Shell.Current.DisplayAlert("Gespeichert", "Deine Jellyfin Zugangsdaten wurden gespeichert.", "OK");

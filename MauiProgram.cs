@@ -21,7 +21,7 @@ namespace MyJellyfinClient
 #if DEBUG
             builder.Logging.AddDebug();
 #endif
-
+            builder.Services.AddSingleton<ServerConnectionService>();
             builder.Services.AddSingleton<ISettingsService, SettingsService>();
             builder.Services.AddTransient<DynamicBaseUrlHandler>();
 

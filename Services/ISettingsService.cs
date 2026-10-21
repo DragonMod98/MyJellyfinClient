@@ -3,6 +3,7 @@
 public interface ISettingsService
 {
     string ServerUrl { get; set; }
+    string BackupServerUrl { get; set; }
     string UserId { get; set; }
 
     // AuthTokens sollten asynchron über SecureStorage geladen werden

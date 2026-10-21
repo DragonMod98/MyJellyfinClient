@@ -8,6 +8,12 @@ public class SettingsService : ISettingsService
         set => Preferences.Default.Set(nameof(ServerUrl), value?.TrimEnd('/'));
     }
 
+    public string BackupServerUrl
+    {
+        get => Preferences.Default.Get(nameof(BackupServerUrl), string.Empty);
+        set => Preferences.Default.Set(nameof(BackupServerUrl), value?.TrimEnd('/'));
+    }
+
     public string UserId
     {
         get => Preferences.Default.Get(nameof(UserId), string.Empty);
