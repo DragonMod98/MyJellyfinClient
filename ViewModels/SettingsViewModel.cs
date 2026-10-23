@@ -25,6 +25,9 @@ public partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<ChoiceOption> SubtitleChoices => DownloadDefaults.SubtitleLanguages;
 
     [ObservableProperty]
+    private bool autoDownloadNext;
+
+    [ObservableProperty]
     private ChoiceOption selectedQuality;
 
     [ObservableProperty]
@@ -36,6 +39,7 @@ public partial class SettingsViewModel : ObservableObject
     public SettingsViewModel(ISettingsService settingsService)
     {
         _settingsService = settingsService;
+        AutoDownloadNext = _settingsService.AutoDownloadNextEpisode;
         SelectedQuality = QualityChoices.FirstOrDefault(c => c.Code == _settingsService.DefaultQuality) ?? DownloadDefaults.NoDefault;
         SelectedAudio = AudioChoices.FirstOrDefault(c => c.Code == _settingsService.DefaultAudioLanguage) ?? DownloadDefaults.NoDefault;
         SelectedSubtitle = SubtitleChoices.FirstOrDefault(c => c.Code == _settingsService.DefaultSubtitleLanguage) ?? DownloadDefaults.NoDefault;
@@ -56,6 +60,7 @@ public partial class SettingsViewModel : ObservableObject
         _settingsService.ServerUrl = ServerUrlInput;
         _settingsService.BackupServerUrl = BackupServerUrlInput;
         _settingsService.UserId = UserIdInput;
+        _settingsService.AutoDownloadNextEpisode = AutoDownloadNext;
         _settingsService.DefaultQuality = SelectedQuality?.Code;
         _settingsService.DefaultAudioLanguage = SelectedAudio?.Code;
         _settingsService.DefaultSubtitleLanguage = SelectedSubtitle?.Code;
@@ -67,3 +72,5 @@ public partial class SettingsViewModel : ObservableObject
         await Shell.Current.DisplayAlert("Gespeichert", "Deine Jellyfin Zugangsdaten wurden gespeichert.", "OK");
     }
 }
+
+

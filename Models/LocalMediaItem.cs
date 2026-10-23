@@ -14,6 +14,7 @@ public class LocalMediaItem
     public string Title { get; set; }
     public string SeriesName { get; set; }
     public string SeasonName { get; set; }
+    public string SeriesId { get; set; }   // Jellyfin-ID der Serie (fuer den Auto-Download der naechsten Folge)
     public bool IsSeries { get; set; }
 
     // Offline Video Data

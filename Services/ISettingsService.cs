@@ -8,6 +8,7 @@ public interface ISettingsService
 
     // Download-Vorgaben ("" = keine Vorgabe; Untertitel zusaetzlich "none")
     string DefaultQuality { get; set; }
+    bool AutoDownloadNextEpisode { get; set; } // Naechste Folge nach dem Schauen automatisch laden
     string DefaultAudioLanguage { get; set; }
     string DefaultSubtitleLanguage { get; set; }
 

@@ -82,6 +82,14 @@ public class LocalDatabaseService
         }
     }
 
+    public async Task<List<LocalMediaItem>> GetItemsBySeriesAsync(string seriesId, string profileId)
+    {
+        await InitAsync();
+        return await _database.Table<LocalMediaItem>()
+                              .Where(i => i.SeriesId == seriesId && i.ProfileId == profileId)
+                              .ToListAsync();
+    }
+
     public async Task DeleteMediaItemAsync(string itemId)
     {
         await InitAsync();
@@ -112,4 +120,5 @@ public class LocalDatabaseService
         return downloadedItems.Sum(i => i.FileSizeBytes);
     }
 }
+
 

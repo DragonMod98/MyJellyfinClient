@@ -15,6 +15,7 @@ namespace MyJellyfinClient.ViewModels;
 [QueryProperty(nameof(SeriesName), "SeriesName")]
 [QueryProperty(nameof(SeasonName), "SeasonName")]
 [QueryProperty(nameof(IsSeriesText), "IsSeries")]
+[QueryProperty(nameof(SeriesId), "SeriesId")]
 [QueryProperty(nameof(RunTimeTicksText), "RunTimeTicks")]
 public partial class MediaDetailViewModel : ObservableObject
 {
@@ -35,6 +36,9 @@ public partial class MediaDetailViewModel : ObservableObject
 
     [ObservableProperty]
     private string seasonName;
+
+    [ObservableProperty]
+    private string seriesId;
 
     [ObservableProperty]
     private string isSeriesText;
@@ -249,6 +253,7 @@ public partial class MediaDetailViewModel : ObservableObject
             Title = MediaTitle,
             SeriesName = SeriesName,
             SeasonName = SeasonName,
+            SeriesId = SeriesId,
             IsSeries = IsSeriesText == "true" || !string.IsNullOrEmpty(SeriesName),
             RunTimeTicks = runTimeTicks,
             Options = options
@@ -270,6 +275,8 @@ public partial class MediaDetailViewModel : ObservableObject
         }
     }
 }
+
+
 
 
 

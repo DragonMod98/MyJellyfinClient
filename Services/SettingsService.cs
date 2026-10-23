@@ -20,6 +20,12 @@ public class SettingsService : ISettingsService
         set => Preferences.Default.Set(nameof(UserId), value);
     }
 
+    public bool AutoDownloadNextEpisode
+    {
+        get => Preferences.Default.Get(nameof(AutoDownloadNextEpisode), true);
+        set => Preferences.Default.Set(nameof(AutoDownloadNextEpisode), value);
+    }
+
     public string DefaultQuality
     {
         get => Preferences.Default.Get(nameof(DefaultQuality), string.Empty);

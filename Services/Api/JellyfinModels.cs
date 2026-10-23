@@ -22,6 +22,8 @@ public class PlaybackProgressInfo
         public string Name { get; set; }
         public string SeriesName { get; set; }
         public string SeasonName { get; set; }
+        public string SeriesId { get; set; }
+        public int? ParentIndexNumber { get; set; }  // Staffelnummer
         public int? IndexNumber { get; set; }        // Folgennummer
         public long? RunTimeTicks { get; set; }
         public JellyfinUserData UserData { get; set; }
@@ -61,7 +63,10 @@ public class JellyfinItemDetails
     public int? ProductionYear { get; set; }
     public double? CommunityRating { get; set; }
     public string OfficialRating { get; set; }
+    public string SeriesId { get; set; }
     public List<string> Genres { get; set; }
     public long? RunTimeTicks { get; set; }
 }
+
+
 

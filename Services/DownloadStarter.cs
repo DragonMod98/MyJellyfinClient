@@ -11,6 +11,7 @@ public class DownloadRequest
     public string Title { get; set; }
     public string SeriesName { get; set; }
     public string SeasonName { get; set; }
+    public string SeriesId { get; set; }
     public bool IsSeries { get; set; }
     public long RunTimeTicks { get; set; }
     public DownloadOptions Options { get; set; } = new();
@@ -67,7 +68,8 @@ public class DownloadStarter
         if (string.IsNullOrEmpty(serverUrl))
             return -1;
 
-        await EnsureNotificationPermissionAsync();
+        try { await MainThread.InvokeOnMainThreadAsync(EnsureNotificationPermissionAsync); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Benachrichtigungs-Berechtigung: {ex.Message}"); }
 
         int started = 0;
         foreach (var request in requests)
@@ -84,6 +86,7 @@ public class DownloadStarter
             item.Title = request.Title;
             item.SeriesName = request.SeriesName;
             item.SeasonName = request.SeasonName;
+            if (!string.IsNullOrEmpty(request.SeriesId)) item.SeriesId = request.SeriesId;
             item.IsSeries = request.IsSeries;
             if (request.RunTimeTicks > 0)
                 item.TotalTicks = request.RunTimeTicks;
@@ -151,5 +154,8 @@ public class DownloadStarter
         return sb.ToString();
     }
 }
+
+
+
 
 

@@ -1,4 +1,4 @@
-using LibVLCSharp.Shared;
+﻿using LibVLCSharp.Shared;
 using MyJellyfinClient.Services;
 
 namespace MyJellyfinClient.Views;
@@ -173,15 +173,8 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
             _autoActionsTriggered = true;
 
             string currentUserId = _settings.UserId;
-            string currentAuthToken = $"MediaBrowser Token=\"{await _settings.GetAuthTokenAsync()}\"";
-
-            // 1. Auto-Download der nächsten Folge anstoßen (falls es eine Serie ist)
-            if (!string.IsNullOrEmpty(_seriesId))
-            {
-                await _autoDownloadManager.TriggerNextEpisodeDownloadAsync(_seriesId, currentUserId, currentAuthToken);
-            }
-
-            // 2. Den Cleanup anstoßen (Löscht diese Folge beim nächsten App-Start oder sofort im Hintergrund)
+            // Auto-Download der naechsten Folge passiert nach dem Sync zu Jellyfin (SyncEngine/AutoDownloadManager).
+            // Den Cleanup anstoßen (Löscht diese Folge beim nächsten App-Start oder sofort im Hintergrund)
             // Hinweis: Wir rufen das hier nicht synchron mit 'await' auf, damit der Player nicht ruckelt.
             // Fire-and-Forget:
             _ = Task.Run(async () =>

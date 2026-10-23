@@ -202,6 +202,7 @@ public partial class LibraryViewModel : ObservableObject
             Title = item.DisplayTitle,
             SeriesName = series,
             SeasonName = season,
+            SeriesId = item.SeriesId,
             IsSeries = !string.IsNullOrEmpty(series) || item.Type == "Episode",
             RunTimeTicks = item.RunTimeTicks ?? 0
         };
@@ -351,6 +352,7 @@ public partial class LibraryViewModel : ObservableObject
                 { "Title", request.Title },
                 { "SeriesName", request.SeriesName ?? string.Empty },
                 { "SeasonName", request.SeasonName ?? string.Empty },
+                { "SeriesId", request.SeriesId ?? string.Empty },
                 { "IsSeries", request.IsSeries ? "true" : "false" },
                 { "RunTimeTicks", request.RunTimeTicks.ToString() }
             };

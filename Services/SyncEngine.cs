@@ -8,11 +8,13 @@ public class SyncEngine
     private readonly LocalDatabaseService _dbService;
     private readonly ISettingsService _settings;
     private readonly IJellyfinApiService _apiService;
+    private readonly AutoDownloadManager _autoDownloadManager;
     private bool _isSyncing = false;
 
 
-    public SyncEngine(LocalDatabaseService dbService, IJellyfinApiService apiService, ISettingsService settings)
+    public SyncEngine(LocalDatabaseService dbService, IJellyfinApiService apiService, ISettingsService settings, AutoDownloadManager autoDownloadManager)
     {
+        _autoDownloadManager = autoDownloadManager;
         _dbService = dbService;
         _apiService = apiService;
         _settings = settings;
@@ -37,6 +39,9 @@ public class SyncEngine
             return;
 
         _isSyncing = true;
+
+        // Folgen, deren Gesehen-Status gerade erfolgreich an Jellyfin gemeldet wurde
+        var newlyWatchedEpisodes = new List<Models.LocalMediaItem>();
 
         try
         {
@@ -80,6 +85,9 @@ public class SyncEngine
                     item.NeedsSyncToServer = false;
                     await _dbService.SaveOrUpdateMediaItemAsync(item);
 
+                    if (item.IsWatched && item.IsSeries)
+                        newlyWatchedEpisodes.Add(item);
+
                     // Zwischenzeitlich geloeschte Eintraege (nur noch fuer den Sync behalten) jetzt entfernen
                     if (!item.IsDownloaded)
                         await _dbService.DeleteMediaItemAsync(item.JellyfinItemId);
@@ -96,6 +104,15 @@ public class SyncEngine
         {
             _isSyncing = false;
         }
+
+        // Nur wenn der Status wirklich beim Server angekommen ist: naechste Folge je Serie laden
+        var perSeries = newlyWatchedEpisodes.GroupBy(i => i.SeriesId ?? i.SeriesName ?? i.JellyfinItemId);
+        foreach (var group in perSeries)
+        {
+            // Pro gesehener Folge eine weitere laden (offline 2 gesehen => 2 neue Folgen)
+            var latest = group.OrderByDescending(i => i.LastPlayedOffline).First();
+            await _autoDownloadManager.TriggerNextEpisodeDownloadAsync(latest, group.Count());
+        }
     }
 
     // Explizite Methode zum Deregistrieren (wichtig für den App-Lebenszyklus)
@@ -104,3 +121,6 @@ public class SyncEngine
         Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
     }
 }
+
+
+

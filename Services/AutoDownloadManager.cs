@@ -1,70 +1,129 @@
-﻿using MyJellyfinClient.Services.Api;
+﻿using MyJellyfinClient.Models;
+using MyJellyfinClient.Services.Api;
 
 namespace MyJellyfinClient.Services;
 
+/// <summary>
+/// Laedt bei Serien automatisch die naechste Folge, sobald eine heruntergeladene Folge
+/// gesehen wurde und dieser Status erfolgreich an Jellyfin gemeldet ist.
+/// </summary>
 public class AutoDownloadManager
 {
     private readonly IJellyfinApiService _apiService;
-    private readonly IDownloadManager _downloadManager;
-    private readonly ISettingsService _settings;
+    private readonly DownloadStarter _downloadStarter;
     private readonly LocalDatabaseService _dbService;
+    private readonly ISettingsService _settings;
 
-    public AutoDownloadManager(IJellyfinApiService apiService, IDownloadManager downloadManager, LocalDatabaseService dbService, ISettingsService settings)
+    public AutoDownloadManager(IJellyfinApiService apiService, DownloadStarter downloadStarter, LocalDatabaseService dbService, ISettingsService settings)
     {
         _apiService = apiService;
-        _downloadManager = downloadManager;
+        _downloadStarter = downloadStarter;
         _dbService = dbService;
         _settings = settings;
     }
 
     /// <summary>
-    /// Prüft, ob es eine Folge-Episode gibt, und startet den Download im Hintergrund.
+    /// watched = die soeben gesehene (und synchronisierte) Folge. Geladen wird die erste Folge nach der
+    /// zuletzt vorhandenen Folge der Serie - ueber Staffelgrenzen hinweg - die noch nicht geladen/gesehen ist.
+    /// count = Anzahl der gesehenen Folgen; pro gesehener Folge wird eine weitere geladen.
     /// </summary>
-    public async Task TriggerNextEpisodeDownloadAsync(string seriesId, string currentUserId, string authToken)
+    public async Task TriggerNextEpisodeDownloadAsync(LocalMediaItem watched, int count = 1)
     {
-        if (string.IsNullOrEmpty(seriesId)) return;
+        if (!_settings.AutoDownloadNextEpisode) return; // in den Einstellungen abgeschaltet
+        if (watched == null || !watched.IsSeries) return;
 
         try
         {
-            // 1. Jellyfin fragen, was die nächste Episode für diese Serie ist
-            var nextUpResponse = await _apiService.GetNextUpAsync(authToken, currentUserId, seriesId);
-            var nextEpisode = nextUpResponse?.Items?.FirstOrDefault();
+            string userId = _settings.UserId;
+            string auth = $"MediaBrowser Token=\"{await _settings.GetAuthTokenAsync()}\"";
 
-            if (nextEpisode == null) return; // Es gibt keine nächste Folge (Staffel/Serie zu Ende)
-
-            // 2. Prüfen, ob wir diese Folge lokal schon haben
-            var localItem = await _dbService.GetMediaItemAsync(nextEpisode.Id);
-            if (localItem != null && localItem.IsDownloaded)
+            // Aeltere Downloads kennen die Serien-ID noch nicht: beim Server nachfragen
+            string seriesId = watched.SeriesId;
+            if (string.IsNullOrEmpty(seriesId))
             {
-                return; // Ist bereits heruntergeladen
+                var details = await _apiService.GetItemDetailsAsync(auth, userId, watched.JellyfinItemId);
+                seriesId = details?.SeriesId;
+                if (string.IsNullOrEmpty(seriesId)) return;
             }
 
-            // 3. Download-URL generieren (Direct Stream Link)
-            // Hinweis: Für eine dynamische Qualitätsauswahl müsste man hier noch den Parameter &VideoBitrate=X anfügen
-            string serverBaseUrl = _settings.ServerUrl;
-            string token = await _settings.GetAuthTokenAsync();
-            string downloadUrl = $"{serverBaseUrl}/Items/{nextEpisode.Id}/Download?api_key={token}";
+            // Alle Folgen in Abspielreihenfolge (ohne Specials/Staffel 0)
+            var response = await _apiService.GetEpisodesAsync(auth, seriesId, userId);
+            var episodes = response?.Items?.Where(e => e.ParentIndexNumber != 0).ToList();
+            if (episodes == null || episodes.Count == 0) return;
 
-            // 4. In der lokalen DB vermerken, dass der Download startet
-            if (localItem == null)
+            // Was liegt lokal bereits vor oder laedt gerade?
+            var rows = await _dbService.GetItemsBySeriesAsync(seriesId, userId);
+            var have = rows.Where(r => r.IsDownloaded).Select(r => r.JellyfinItemId).ToHashSet();
+            foreach (var active in DownloadTracker.Items) have.Add(active.ItemId);
+            have.Add(watched.JellyfinItemId);
+
+            // Ausgangspunkt: die am weitesten hinten liegende vorhandene bzw. gesehene Folge
+            int anchor = episodes.FindLastIndex(e => have.Contains(e.Id));
+            if (anchor < 0) return;
+
+            // Die naechsten Folgen (je gesehener Folge eine), die noch nicht geladen und nicht gesehen sind.
+            // Ende der Staffel => weiter mit der naechsten Staffel.
+            var nextEpisodes = episodes.Skip(anchor + 1)
+                .Where(e => !have.Contains(e.Id) && e.UserData?.Played != true)
+                .Take(Math.Max(1, count))
+                .ToList();
+            if (nextEpisodes.Count == 0) return; // Serie zu Ende
+
+            var requests = new List<DownloadRequest>();
+            foreach (var next in nextEpisodes)
             {
-                localItem = new Models.LocalMediaItem
+                // Vorgaben aus den Einstellungen anwenden (soweit verfuegbar)
+                var options = new DownloadOptions();
+                try
                 {
-                    JellyfinItemId = nextEpisode.Id,
-                    ProfileId = currentUserId,
-                    Title = nextEpisode.Name,
-                    SeriesName = nextEpisode.SeriesName,
-                    IsSeries = true
-                };
-                await _dbService.SaveOrUpdateMediaItemAsync(localItem);
+                    var json = await _apiService.GetPlaybackInfoAsync(auth, next.Id, userId);
+                    var info = MediaStreamParser.Parse(json);
+                    options = MediaStreamParser.Resolve(info, _settings.DefaultQuality, _settings.DefaultAudioLanguage, _settings.DefaultSubtitleLanguage, out _);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AutoDownload] PlaybackInfo fehlgeschlagen: {ex.Message}");
+                }
+
+                requests.Add(new DownloadRequest
+                {
+                    ItemId = next.Id,
+                    Title = next.DisplayTitle,
+                    SeriesName = next.SeriesName ?? watched.SeriesName,
+                    SeasonName = next.SeasonName,
+                    SeriesId = seriesId,
+                    IsSeries = true,
+                    RunTimeTicks = next.RunTimeTicks ?? 0,
+                    Options = options
+                });
             }
 
-            // 5. Nativen Android Background Service starten
-            _downloadManager.StartDownload(nextEpisode.Id, downloadUrl, $"{nextEpisode.SeriesName} - {nextEpisode.Name}");
+            int started = await _downloadStarter.StartAsync(requests);
+            System.Diagnostics.Debug.WriteLine($"[AutoDownload] {requests.Count} Folge(n) angefragt, {started} gestartet");
+        }        catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AutoDownload] PlaybackInfo fehlgeschlagen: {ex.Message}");
+            }
+
+            var request = new DownloadRequest
+            {
+                ItemId = next.Id,
+                Title = next.DisplayTitle,
+                SeriesName = next.SeriesName ?? watched.SeriesName,
+                SeasonName = next.SeasonName,
+                SeriesId = seriesId,
+                IsSeries = true,
+                RunTimeTicks = next.RunTimeTicks ?? 0,
+                Options = options
+            };
+
+            int started = await _downloadStarter.StartAsync(new[] { request });
+            System.Diagnostics.Debug.WriteLine($"[AutoDownload] {next.SeriesName} - {next.DisplayTitle}: Ergebnis {started}");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[AutoDownload] Fehler beim Ermitteln der nächsten Folge: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[AutoDownload] Fehler beim Ermitteln der naechsten Folge: {ex.Message}");
         }
     }
 }
+
