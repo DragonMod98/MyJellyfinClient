@@ -1,4 +1,4 @@
-using MyJellyfinClient.Models;
+﻿using MyJellyfinClient.Models;
 
 namespace MyJellyfinClient.Services;
 
@@ -13,6 +13,7 @@ public class DownloadRequest
     public string SeasonName { get; set; }
     public bool IsSeries { get; set; }
     public long RunTimeTicks { get; set; }
+    public DownloadOptions Options { get; set; } = new();
 }
 
 /// <summary>
@@ -56,8 +57,7 @@ public class DownloadStarter
     /// Startet die Downloads. Gibt die Anzahl der tatsaechlich gestarteten Downloads zurueck
     /// oder -1, wenn der Server nicht erreichbar ist.
     /// </summary>
-    /// <param name="urlSuffix">Optionale Transcoding-Parameter, z.B. "&amp;VideoBitrate=4000000&amp;Width=1280"</param>
-    public async Task<int> StartAsync(IEnumerable<DownloadRequest> requests, string urlSuffix = null)
+    public async Task<int> StartAsync(IEnumerable<DownloadRequest> requests)
     {
         string token = await _settings.GetAuthTokenAsync();
         string userId = _settings.UserId;
@@ -90,11 +90,42 @@ public class DownloadStarter
             item.IsDownloaded = false; // Wird vom Background-Service auf true gesetzt, wenn fertig
             await _dbService.SaveOrUpdateMediaItemAsync(item);
 
-            string url = $"{serverUrl.TrimEnd('/')}/Items/{request.ItemId}/Download?api_key={token}{urlSuffix}";
+            string url = BuildUrl(serverUrl, token, request);
             _downloadManager.StartDownload(request.ItemId, url, request.Title);
             started++;
         }
 
         return started;
+    }
+
+    private static string BuildUrl(string serverUrl, string token, DownloadRequest request)
+    {
+        var o = request.Options ?? new DownloadOptions();
+        string baseUrl = serverUrl.TrimEnd('/');
+
+        // Original mit allen Spuren: Datei direkt laden
+        if (!o.NeedsServerProcessing)
+            return $"{baseUrl}/Items/{request.ItemId}/Download?api_key={token}";
+
+        // Sonst vom Server als MKV mit der gewaehlten Tonspur/Untertitel (und Qualitaet) erzeugen lassen
+        var sb = new System.Text.StringBuilder($"{baseUrl}/Videos/{request.ItemId}/stream.mkv?api_key={token}&Static=false&SubtitleMethod=Embed");
+        if (!string.IsNullOrEmpty(o.MediaSourceId)) sb.Append($"&MediaSourceId={o.MediaSourceId}");
+        if (o.AudioStreamIndex is int a) sb.Append($"&AudioStreamIndex={a}");
+        if (o.SubtitleStreamIndex is int s) sb.Append($"&SubtitleStreamIndex={s}");
+
+        switch (o.Quality)
+        {
+            case "1080p":
+                sb.Append("&VideoCodec=h264&AudioCodec=aac&VideoBitRate=10000000&MaxWidth=1920&AllowVideoStreamCopy=false");
+                break;
+            case "720p":
+                sb.Append("&VideoCodec=h264&AudioCodec=aac&VideoBitRate=4000000&MaxWidth=1280&AllowVideoStreamCopy=false");
+                break;
+            default: // Original-Qualitaet: Video/Ton nach Moeglichkeit unveraendert uebernehmen
+                sb.Append("&VideoCodec=h264,hevc&AudioCodec=aac,ac3,eac3,mp3,opus&AllowVideoStreamCopy=true&AllowAudioStreamCopy=true");
+                break;
+        }
+
+        return sb.ToString();
     }
 }

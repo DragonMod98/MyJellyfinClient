@@ -54,66 +54,80 @@ public partial class MediaDetailViewModel : ObservableObject
         _settings = settings;
     }
 
+    // Tonspuren/Untertitel des Mediums (erster Eintrag = "Alle" bzw. "Keine")
+    public ObservableCollection<TrackOption> AudioTracks { get; } = new();
+    public ObservableCollection<TrackOption> SubtitleTracks { get; } = new();
+
+    [ObservableProperty]
+    private TrackOption selectedAudio;
+
+    [ObservableProperty]
+    private TrackOption selectedSubtitle;
+
+    private MediaStreamInfo _streamInfo;
+
     [RelayCommand]
     public async Task FetchDownloadOptionsAsync()
     {
-        // Original ist immer verfügbar, auch wenn der Server nicht antwortet
+        // Grundauswahl ist immer verfuegbar, auch wenn der Server nicht antwortet
         AvailableQualities.Clear();
         AvailableQualities.Add("Original (Direct Play)");
-        SelectedQuality = AvailableQualities.First();
+        AudioTracks.Clear();
+        AudioTracks.Add(new TrackOption { Index = -1, Name = "Alle Tonspuren (Original)" });
+        SubtitleTracks.Clear();
+        SubtitleTracks.Add(new TrackOption { Index = -1, Name = "Alle Untertitel (Original)" });
+        SubtitleTracks.Add(new TrackOption { Index = -2, Name = "Keine Untertitel" });
 
         try
         {
             string token = await _settings.GetAuthTokenAsync();
-            string currentUserId = _settings.UserId;
             string authHeader = $"MediaBrowser Token=\"{token}\"";
 
-            // Manifest vom Server holen
-            var playbackInfoJson = await _apiService.GetPlaybackInfoAsync(authHeader, JellyfinItemId, currentUserId);
+            var json = await _apiService.GetPlaybackInfoAsync(authHeader, JellyfinItemId, _settings.UserId);
+            _streamInfo = MediaStreamParser.Parse(json);
 
-            // Höhe des Originalvideos ermitteln, um nur sinnvolle Optionen anzubieten
-            int height = 0;
-            using var doc = JsonDocument.Parse(playbackInfoJson);
-            if (doc.RootElement.TryGetProperty("MediaSources", out var mediaSources)
-                && mediaSources.GetArrayLength() > 0
-                && mediaSources[0].TryGetProperty("MediaStreams", out var streams))
-            {
-                foreach (var stream in streams.EnumerateArray())
-                {
-                    if (stream.TryGetProperty("Type", out var type) && type.GetString() == "Video"
-                        && stream.TryGetProperty("Height", out var h) && h.ValueKind == JsonValueKind.Number)
-                    {
-                        height = h.GetInt32();
-                        break;
-                    }
-                }
-            }
-
-            // Höhe unbekannt (0) => alle Optionen anbieten
+            // Qualitaeten nur anbieten, wenn das Original gross genug ist (Hoehe 0 = unbekannt)
+            int height = _streamInfo.Height;
+            if (height == 0 || height >= 1080)
+                AvailableQualities.Add("1080p - 10 Mbps (Transcode)");
             if (height == 0 || height > 720)
-            {
-                if (height == 0 || height >= 1080)
-                    AvailableQualities.Add("1080p - 10 Mbps (Transcode)");
                 AvailableQualities.Add("720p - 4 Mbps (Transcode)");
-            }
+
+            foreach (var a in _streamInfo.Audio) AudioTracks.Add(a);
+            foreach (var s in _streamInfo.Subtitles) SubtitleTracks.Add(s);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Fehler beim Laden der Optionen: {ex.Message}");
         }
-    }
 
+        // Vorgaben aus den Einstellungen vorauswaehlen, soweit verfuegbar
+        SelectedQuality = AvailableQualities.FirstOrDefault(q => !string.IsNullOrEmpty(_settings.DefaultQuality) && q.StartsWith(_settings.DefaultQuality))
+                          ?? AvailableQualities.First();
+
+        string audioLang = DownloadDefaults.NormalizeLanguage(_settings.DefaultAudioLanguage);
+        SelectedAudio = (!string.IsNullOrEmpty(audioLang) ? AudioTracks.FirstOrDefault(t => t.Index >= 0 && t.Language == audioLang) : null)
+                        ?? AudioTracks.First();
+
+        string subLang = _settings.DefaultSubtitleLanguage;
+        SelectedSubtitle = subLang == "none"
+            ? SubtitleTracks.First(t => t.Index == -2)
+            : (!string.IsNullOrEmpty(subLang) ? SubtitleTracks.FirstOrDefault(t => t.Index >= 0 && t.Language == DownloadDefaults.NormalizeLanguage(subLang)) : null)
+              ?? SubtitleTracks.First();
+    }
 
     [RelayCommand]
     public async Task StartDownloadAsync()
     {
-        // Transcoding-Parameter anhaengen, falls nicht "Original" gewaehlt wurde
-        // Ohne Auswahl (null) wird die Originaldatei geladen
-        string suffix = null;
-        if (SelectedQuality?.Contains("1080p") == true)
-            suffix = "&VideoBitrate=10000000&Width=1920";
-        else if (SelectedQuality?.Contains("720p") == true)
-            suffix = "&VideoBitrate=4000000&Width=1280";
+        var options = new DownloadOptions { MediaSourceId = _streamInfo?.MediaSourceId };
+
+        if (SelectedQuality?.Contains("1080p") == true) options.Quality = "1080p";
+        else if (SelectedQuality?.Contains("720p") == true) options.Quality = "720p";
+
+        // -1 = alle Spuren (nichts angeben), -2 = keine Untertitel
+        if (SelectedAudio is { Index: >= 0 }) options.AudioStreamIndex = SelectedAudio.Index;
+        if (SelectedSubtitle is { Index: >= 0 }) options.SubtitleStreamIndex = SelectedSubtitle.Index;
+        else if (SelectedSubtitle is { Index: -2 }) options.SubtitleStreamIndex = -1;
 
         long.TryParse(RunTimeTicksText, out long runTimeTicks);
 
@@ -124,10 +138,11 @@ public partial class MediaDetailViewModel : ObservableObject
             SeriesName = SeriesName,
             SeasonName = SeasonName,
             IsSeries = IsSeriesText == "true" || !string.IsNullOrEmpty(SeriesName),
-            RunTimeTicks = runTimeTicks
+            RunTimeTicks = runTimeTicks,
+            Options = options
         };
 
-        int started = await _downloadStarter.StartAsync(new[] { request }, suffix);
+        int started = await _downloadStarter.StartAsync(new[] { request });
 
         if (started < 0)
         {

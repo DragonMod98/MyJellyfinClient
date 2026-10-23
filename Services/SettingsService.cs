@@ -20,6 +20,24 @@ public class SettingsService : ISettingsService
         set => Preferences.Default.Set(nameof(UserId), value);
     }
 
+    public string DefaultQuality
+    {
+        get => Preferences.Default.Get(nameof(DefaultQuality), string.Empty);
+        set => Preferences.Default.Set(nameof(DefaultQuality), value ?? string.Empty);
+    }
+
+    public string DefaultAudioLanguage
+    {
+        get => Preferences.Default.Get(nameof(DefaultAudioLanguage), string.Empty);
+        set => Preferences.Default.Set(nameof(DefaultAudioLanguage), value ?? string.Empty);
+    }
+
+    public string DefaultSubtitleLanguage
+    {
+        get => Preferences.Default.Get(nameof(DefaultSubtitleLanguage), string.Empty);
+        set => Preferences.Default.Set(nameof(DefaultSubtitleLanguage), value ?? string.Empty);
+    }
+
     public async Task<string> GetAuthTokenAsync()
     {
         return await SecureStorage.Default.GetAsync("JellyfinAuthToken") ?? string.Empty;

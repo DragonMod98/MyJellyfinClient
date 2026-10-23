@@ -20,9 +20,25 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private string authTokenInput;
 
+    public IReadOnlyList<ChoiceOption> QualityChoices => DownloadDefaults.Qualities;
+    public IReadOnlyList<ChoiceOption> AudioChoices => DownloadDefaults.AudioLanguages;
+    public IReadOnlyList<ChoiceOption> SubtitleChoices => DownloadDefaults.SubtitleLanguages;
+
+    [ObservableProperty]
+    private ChoiceOption selectedQuality;
+
+    [ObservableProperty]
+    private ChoiceOption selectedAudio;
+
+    [ObservableProperty]
+    private ChoiceOption selectedSubtitle;
+
     public SettingsViewModel(ISettingsService settingsService)
     {
         _settingsService = settingsService;
+        SelectedQuality = QualityChoices.FirstOrDefault(c => c.Code == _settingsService.DefaultQuality) ?? DownloadDefaults.NoDefault;
+        SelectedAudio = AudioChoices.FirstOrDefault(c => c.Code == _settingsService.DefaultAudioLanguage) ?? DownloadDefaults.NoDefault;
+        SelectedSubtitle = SubtitleChoices.FirstOrDefault(c => c.Code == _settingsService.DefaultSubtitleLanguage) ?? DownloadDefaults.NoDefault;
         LoadSettingsAsync();
     }
 
@@ -40,6 +56,9 @@ public partial class SettingsViewModel : ObservableObject
         _settingsService.ServerUrl = ServerUrlInput;
         _settingsService.BackupServerUrl = BackupServerUrlInput;
         _settingsService.UserId = UserIdInput;
+        _settingsService.DefaultQuality = SelectedQuality?.Code;
+        _settingsService.DefaultAudioLanguage = SelectedAudio?.Code;
+        _settingsService.DefaultSubtitleLanguage = SelectedSubtitle?.Code;
         await _settingsService.SetAuthTokenAsync(AuthTokenInput);
 
         IPlatformApplication.Current?.Services.GetService<ServerConnectionService>()?.ResetCache();

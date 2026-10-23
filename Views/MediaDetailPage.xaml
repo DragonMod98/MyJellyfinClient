@@ -35,6 +35,28 @@
                         SelectedItem="{Binding SelectedQuality}"
                         TextColor="White" />
 
+                    <Label
+                        FontSize="14"
+                        Text="Tonspur:"
+                        TextColor="#A0A0A0" />
+                    <Picker
+                        Title="Tonspur wählen"
+                        BackgroundColor="#2D323E"
+                        ItemsSource="{Binding AudioTracks}"
+                        SelectedItem="{Binding SelectedAudio}"
+                        TextColor="White" />
+
+                    <Label
+                        FontSize="14"
+                        Text="Untertitel:"
+                        TextColor="#A0A0A0" />
+                    <Picker
+                        Title="Untertitel wählen"
+                        BackgroundColor="#2D323E"
+                        ItemsSource="{Binding SubtitleTracks}"
+                        SelectedItem="{Binding SelectedSubtitle}"
+                        TextColor="White" />
+
                     <!--  Der Button ruft das StartDownloadAsync Command im ViewModel auf  -->
                     <Button
                         BackgroundColor="#AA5CC3"

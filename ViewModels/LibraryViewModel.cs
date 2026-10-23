@@ -217,6 +217,56 @@ public partial class LibraryViewModel : ObservableObject
         if (!confirm) return;
 
         var requests = items.Select(i => BuildRequest(i, forceSeries: true)).ToList();
+
+        // Streaminfos (Tonspuren/Untertitel) aller Folgen laden
+        string token = await _settingsService.GetAuthTokenAsync();
+        string authHeader = $"MediaBrowser Token=\"{token}\"";
+        var infos = new Dictionary<string, MediaStreamInfo>();
+        IsLoading = true;
+        try
+        {
+            foreach (var r in requests)
+            {
+                try
+                {
+                    var json = await _apiService.GetPlaybackInfoAsync(authHeader, r.ItemId, _settingsService.UserId);
+                    infos[r.ItemId] = MediaStreamParser.Parse(json);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"PlaybackInfo fehlgeschlagen ({r.Title}): {ex.Message}");
+                }
+            }
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+
+        string quality = _settingsService.DefaultQuality;
+        string audio = _settingsService.DefaultAudioLanguage;
+        string subtitle = _settingsService.DefaultSubtitleLanguage;
+
+        // Vorgaben pruefen: nichts gesetzt oder bei mindestens einer Folge nicht verfuegbar => nachfragen
+        bool anyDefault = !string.IsNullOrEmpty(quality) || !string.IsNullOrEmpty(audio) || !string.IsNullOrEmpty(subtitle);
+        bool allMatch = anyDefault && requests.All(r =>
+        {
+            MediaStreamParser.Resolve(infos.GetValueOrDefault(r.ItemId), quality, audio, subtitle, out bool ok);
+            return ok;
+        });
+
+        if (!allMatch)
+        {
+            var choice = await AskDownloadChoicesAsync(infos.Values);
+            if (choice == null) return; // abgebrochen
+            (quality, audio, subtitle) = choice.Value;
+        }
+
+        foreach (var r in requests)
+        {
+            r.Options = MediaStreamParser.Resolve(infos.GetValueOrDefault(r.ItemId), quality, audio, subtitle, out _);
+        }
+
         int started = await _downloadStarter.StartAsync(requests);
 
         string message = started switch
@@ -227,6 +277,48 @@ public partial class LibraryViewModel : ObservableObject
         };
         await Shell.Current.DisplayAlert("Download", message, "OK");
     }
+
+    // Fragt Qualitaet, Tonspur und Untertitel (nach Sprache) fuer alle Folgen gemeinsam ab.
+    // Gibt null zurueck, wenn der Nutzer abbricht.
+    private async Task<(string Quality, string Audio, string Subtitle)?> AskDownloadChoicesAsync(IEnumerable<MediaStreamInfo> infos)
+    {
+        const string cancel = "Abbrechen";
+        var page = Shell.Current;
+        var list = infos.ToList();
+
+        // Qualitaet
+        var qualityNames = new List<string> { "Original" };
+        if (list.Count == 0 || list.Any(i => i.Height == 0 || i.Height >= 1080)) qualityNames.Add("1080p");
+        if (list.Count == 0 || list.Any(i => i.Height == 0 || i.Height > 720)) qualityNames.Add("720p");
+        string q = await page.DisplayActionSheet("Qualität", cancel, null, qualityNames.ToArray());
+        if (q == null || q == cancel) return null;
+
+        // Tonspur: Sprachen, die in mindestens einer Folge vorkommen
+        var audioLangs = list.SelectMany(i => i.Audio).Where(t => !string.IsNullOrEmpty(t.Language))
+            .Select(t => t.Language).Distinct().ToList();
+        string audio = "";
+        if (audioLangs.Count > 0)
+        {
+            var names = audioLangs.ToDictionary(l => LanguageName(l), l => l);
+            string a = await page.DisplayActionSheet("Tonspur", cancel, null, new[] { "Alle / Standard" }.Concat(names.Keys).ToArray());
+            if (a == null || a == cancel) return null;
+            audio = names.GetValueOrDefault(a) ?? "";
+        }
+
+        // Untertitel
+        var subLangs = list.SelectMany(i => i.Subtitles).Where(t => !string.IsNullOrEmpty(t.Language))
+            .Select(t => t.Language).Distinct().ToList();
+        var subNames = subLangs.ToDictionary(l => LanguageName(l), l => l);
+        string s = await page.DisplayActionSheet("Untertitel", cancel, null,
+            new[] { "Alle Untertitel", "Keine Untertitel" }.Concat(subNames.Keys).ToArray());
+        if (s == null || s == cancel) return null;
+        string subtitle = s == "Keine Untertitel" ? "none" : subNames.GetValueOrDefault(s) ?? "";
+
+        return (q == "Original" ? "Original" : q, audio, subtitle);
+    }
+
+    private static string LanguageName(string code) =>
+        DownloadDefaults.AudioLanguages.FirstOrDefault(l => l.Code == code)?.Name ?? code;
 
     // Wird aufgerufen, wenn auf ein Film-Poster geklickt wird
     [RelayCommand]
