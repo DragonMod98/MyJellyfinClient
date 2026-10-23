@@ -26,6 +26,10 @@ public interface IJellyfinApiService
     [Get("/Shows/NextUp?userId={userId}&seriesId={seriesId}")]
     Task<NextUpResponse> GetNextUpAsync([Header("Authorization")] string authHeader, string userId, string seriesId);
 
+    // Details zu einem Film/einer Folge (Beschreibung, Jahr, Bewertung, Genres)
+    [Get("/Users/{userId}/Items/{itemId}")]
+    Task<JellyfinItemDetails> GetItemDetailsAsync([Header("Authorization")] string authHeader, string userId, string itemId);
+
     // Holt die neuesten Filme und Serien des Nutzers
     [Get("/Users/{userId}/Items?EnableUserData=true&Fields=RunTimeTicks")]
     Task<JellyfinItemsResponse> GetLibraryItemsAsync([Header("Authorization")] string authHeader, string userId);
@@ -34,4 +38,5 @@ public interface IJellyfinApiService
     [Get("/Users/{userId}/Items?ParentId={selectedFolderId}&EnableUserData=true&Fields=RunTimeTicks")]
     Task<JellyfinItemsResponse> GetFolderItemsAsync([Header("Authorization")] string authHeader, string userId, string selectedFolderId);
 }
+
 

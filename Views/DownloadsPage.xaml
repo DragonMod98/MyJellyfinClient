@@ -5,7 +5,7 @@
     Title="Meine Downloads"
     BackgroundColor="#10141D">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,Auto,*">
         <!--  Header (Speicherplatz Übersicht)  -->
         <Border
             Grid.Row="0"
@@ -30,9 +30,77 @@
             </VerticalStackLayout>
         </Border>
 
+        <!--  Laufende/wartende Downloads mit Fortschritt und Abbrechen  -->
+        <Border
+            Grid.Row="1"
+            Margin="15,0,15,10"
+            Padding="12"
+            BackgroundColor="#1B2230"
+            IsVisible="{Binding HasActiveDownloads}"
+            StrokeShape="RoundRectangle 10">
+            <VerticalStackLayout Spacing="10">
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label
+                        FontAttributes="Bold"
+                        FontSize="16"
+                        Text="Aktive Downloads"
+                        TextColor="White"
+                        VerticalOptions="Center" />
+                    <Button
+                        Grid.Column="1"
+                        BackgroundColor="Transparent"
+                        Command="{Binding CancelAllDownloadsCommand}"
+                        FontSize="12"
+                        Padding="8,0"
+                        Text="Alle abbrechen"
+                        TextColor="#E57373" />
+                </Grid>
+
+                <VerticalStackLayout BindableLayout.ItemsSource="{Binding ActiveDownloads}" Spacing="10">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <Label
+                                    FontSize="14"
+                                    LineBreakMode="TailTruncation"
+                                    Text="{Binding Title}"
+                                    TextColor="White" />
+                                <Button
+                                    Grid.RowSpan="3"
+                                    Grid.Column="1"
+                                    BackgroundColor="#C0392B"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.CancelDownloadCommand}"
+                                    CommandParameter="{Binding .}"
+                                    CornerRadius="16"
+                                    FontAttributes="Bold"
+                                    HeightRequest="32"
+                                    Margin="10,0,0,0"
+                                    Padding="0"
+                                    Text="✕"
+                                    TextColor="White"
+                                    VerticalOptions="Center"
+                                    WidthRequest="32" />
+                                <ProgressBar
+                                    Grid.Row="1"
+                                    Margin="0,6,0,0"
+                                    HeightRequest="6"
+                                    Progress="{Binding Progress}"
+                                    ProgressColor="{StaticResource Primary}" />
+                                <Label
+                                    Grid.Row="2"
+                                    FontSize="11"
+                                    Text="{Binding StatusText}"
+                                    TextColor="{StaticResource TextColorSecondary}" />
+                            </Grid>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </Border>
+
         <!--  Liste der heruntergeladenen Filme/Serien, gruppiert nach Serie (einklappbar)  -->
         <CollectionView
-            Grid.Row="1"
+            Grid.Row="2"
             Margin="15,0"
             IsGrouped="True"
             ItemsSource="{Binding DownloadGroups}">
@@ -146,4 +214,5 @@
         </CollectionView>
     </Grid>
 </ContentPage>
+
 

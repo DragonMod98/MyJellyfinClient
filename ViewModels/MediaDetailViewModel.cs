@@ -66,6 +66,115 @@ public partial class MediaDetailViewModel : ObservableObject
 
     private MediaStreamInfo _streamInfo;
 
+    // --- Info-Bereich (Chips, Genres, Beschreibung) ---
+    public ObservableCollection<string> InfoChips { get; } = new();
+
+    [ObservableProperty]
+    private string genresText;
+
+    [ObservableProperty]
+    private string overview;
+
+    [ObservableProperty]
+    private bool isOverviewExpanded;
+
+    public bool HasOverview => !string.IsNullOrWhiteSpace(Overview);
+    public bool HasGenres => !string.IsNullOrWhiteSpace(GenresText);
+    public int OverviewMaxLines => IsOverviewExpanded ? 100 : 4;
+
+    partial void OnOverviewChanged(string value) => OnPropertyChanged(nameof(HasOverview));
+    partial void OnGenresTextChanged(string value) => OnPropertyChanged(nameof(HasGenres));
+    partial void OnIsOverviewExpandedChanged(bool value) => OnPropertyChanged(nameof(OverviewMaxLines));
+
+    [RelayCommand]
+    private void ToggleOverview() => IsOverviewExpanded = !IsOverviewExpanded;
+
+    private static string LangName(string code) =>
+        DownloadDefaults.AudioLanguages.FirstOrDefault(l => l.Code == code)?.Name ?? code?.ToUpperInvariant();
+
+    private static string FormatRuntime(long ticks)
+    {
+        var t = TimeSpan.FromTicks(ticks);
+        return t.TotalHours >= 1 ? $"{(int)t.TotalHours} Std. {t.Minutes} Min." : $"{Math.Max(1, t.Minutes)} Min.";
+    }
+
+    private static string FormatSize(long bytes) =>
+        bytes >= 1L << 30 ? $"{bytes / (1024.0 * 1024 * 1024):0.0} GB" : $"{bytes / (1024.0 * 1024):0} MB";
+
+    private static string ResolutionLabel(int width, int height)
+    {
+        if (height == 0) return null;
+        if (width >= 3500 || height >= 2000) return "4K";
+        if (height >= 1300) return "1440p";
+        if (height >= 1000 || width >= 1800) return "1080p";
+        if (height >= 700 || width >= 1200) return "720p";
+        return $"{height}p";
+    }
+
+    private static string ChannelLabel(int ch) => ch switch { 1 => "Mono", 2 => "Stereo", 6 => "5.1", 8 => "7.1", > 0 => $"{ch} Kanäle", _ => null };
+
+    // Liest Details (Beschreibung, Jahr, Bewertung) und baut die uebersichtlichen Info-Chips
+    private async Task LoadInfoAsync()
+    {
+        JellyfinItemDetails details = null;
+        try
+        {
+            string token = await _settings.GetAuthTokenAsync();
+            details = await _apiService.GetItemDetailsAsync($"MediaBrowser Token=\"{token}\"", _settings.UserId, JellyfinItemId);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Details laden fehlgeschlagen: {ex.Message}");
+        }
+
+        var chips = new List<string>();
+
+        // Laufzeit (Server-Details, sonst Medieninfo, sonst Wert aus der Bibliothek)
+        long ticks = details?.RunTimeTicks ?? _streamInfo?.RunTimeTicks ?? 0;
+        if (ticks == 0) long.TryParse(RunTimeTicksText, out ticks);
+        if (ticks > 0) chips.Add("⏱ " + FormatRuntime(ticks));
+
+        if (details?.ProductionYear is int year) chips.Add($"📅 {year}");
+        if (details?.CommunityRating is double rating && rating > 0) chips.Add($"★ {rating:0.0}");
+        if (!string.IsNullOrEmpty(details?.OfficialRating)) chips.Add($"FSK {details.OfficialRating}");
+
+        if (_streamInfo != null)
+        {
+            // Qualitaet des Originals, z.B. "1080p · HEVC · HDR10"
+            var quality = new List<string>();
+            string res = ResolutionLabel(_streamInfo.Width, _streamInfo.Height);
+            if (res != null) quality.Add(res);
+            if (!string.IsNullOrEmpty(_streamInfo.VideoCodec)) quality.Add(_streamInfo.VideoCodec.ToUpperInvariant());
+            if (!string.IsNullOrEmpty(_streamInfo.VideoRange) && !_streamInfo.VideoRange.StartsWith("SDR", StringComparison.OrdinalIgnoreCase))
+                quality.Add(_streamInfo.VideoRange);
+            if (quality.Count > 0) chips.Add("🎞 " + string.Join(" · ", quality));
+
+            if (_streamInfo.SizeBytes > 0) chips.Add("💾 " + FormatSize(_streamInfo.SizeBytes));
+            if (!string.IsNullOrEmpty(_streamInfo.Container)) chips.Add(_streamInfo.Container.Split(",")[0].ToUpperInvariant());
+
+            if (_streamInfo.Audio.Count > 0)
+            {
+                var langs = _streamInfo.Audio.Select(a => LangName(a.Language)).Where(n => !string.IsNullOrEmpty(n)).Distinct().Take(3);
+                string ch = ChannelLabel(_streamInfo.AudioChannels);
+                string audio = $"🔊 {string.Join(", ", langs)}";
+                chips.Add(ch != null ? $"{audio} ({ch})" : audio);
+            }
+
+            if (_streamInfo.Subtitles.Count > 0)
+            {
+                var langs = _streamInfo.Subtitles.Select(s => LangName(s.Language)).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+                string shown = string.Join(", ", langs.Take(3)) + (langs.Count > 3 ? $" +{langs.Count - 3}" : "");
+                chips.Add($"💬 {(string.IsNullOrEmpty(shown) ? _streamInfo.Subtitles.Count + " Untertitel" : shown)}");
+            }
+        }
+
+        InfoChips.Clear();
+        foreach (var chip in chips) InfoChips.Add(chip);
+
+        GenresText = details?.Genres is { Count: > 0 } g ? string.Join(" · ", g) : null;
+        Overview = details?.Overview;
+    }
+
     [RelayCommand]
     public async Task FetchDownloadOptionsAsync()
     {
@@ -114,12 +223,15 @@ public partial class MediaDetailViewModel : ObservableObject
             ? SubtitleTracks.First(t => t.Index == -2)
             : (!string.IsNullOrEmpty(subLang) ? SubtitleTracks.FirstOrDefault(t => t.Index >= 0 && t.Language == DownloadDefaults.NormalizeLanguage(subLang)) : null)
               ?? SubtitleTracks.First();
+
+        // Infos (Laenge, Qualitaet, Beschreibung ...) zuletzt laden, damit die Auswahl sofort steht
+        await LoadInfoAsync();
     }
 
     [RelayCommand]
     public async Task StartDownloadAsync()
     {
-        var options = new DownloadOptions { MediaSourceId = _streamInfo?.MediaSourceId };
+        var options = new DownloadOptions { MediaSourceId = _streamInfo?.MediaSourceId, SourceSizeBytes = _streamInfo?.SizeBytes ?? 0 };
 
         if (SelectedQuality?.Contains("1080p") == true) options.Quality = "1080p";
         else if (SelectedQuality?.Contains("720p") == true) options.Quality = "720p";
@@ -158,3 +270,7 @@ public partial class MediaDetailViewModel : ObservableObject
         }
     }
 }
+
+
+
+

@@ -101,11 +101,43 @@ public partial class DownloadsViewModel : ObservableObject
     [ObservableProperty]
     private bool isLoading;
 
-    public DownloadsViewModel(LocalDatabaseService dbService, ISettingsService settingsService)
+    public DownloadsViewModel(LocalDatabaseService dbService, ISettingsService settingsService, IDownloadManager downloadManager)
     {
         _dbService = dbService;
         _settingsService = settingsService;
+        _downloadManager = downloadManager;
+
+        // Laufende Downloads anzeigen; bei Abschluss/Abbruch die fertige Liste neu laden
+        DownloadTracker.Items.CollectionChanged += OnActiveDownloadsChanged;
+        DownloadTracker.Changed += OnDownloadsChanged;
     }
+
+    private readonly IDownloadManager _downloadManager;
+
+    public ObservableCollection<ActiveDownload> ActiveDownloads => DownloadTracker.Items;
+
+    public bool HasActiveDownloads => DownloadTracker.Items.Count > 0;
+
+    private void OnActiveDownloadsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        => OnPropertyChanged(nameof(HasActiveDownloads));
+
+    private void OnDownloadsChanged()
+        => MainThread.BeginInvokeOnMainThread(() => LoadDownloadsCommand.Execute(null));
+
+    [RelayCommand]
+    private void CancelDownload(ActiveDownload download)
+    {
+        if (download != null)
+            _downloadManager.Cancel(download.ItemId);
+    }
+
+    [RelayCommand]
+    private async Task CancelAllDownloadsAsync()
+    {
+        if (await Shell.Current.DisplayAlert("Downloads abbrechen", "Alle laufenden und wartenden Downloads abbrechen?", "Ja", "Nein"))
+            _downloadManager.CancelAll();
+    }
+
 
     [RelayCommand]
     public async Task LoadDownloadsAsync()

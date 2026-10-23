@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace MyJellyfinClient.Services;
 
@@ -25,6 +25,7 @@ public class DownloadOptions
     public string MediaSourceId { get; set; }
     public int? AudioStreamIndex { get; set; }        // null = alle Tonspuren / Server-Standard
     public int? SubtitleStreamIndex { get; set; }     // null = alle, -1 = keine
+    public long SourceSizeBytes { get; set; }         // Groesse der Originaldatei (fuer die Fortschritts-Schaetzung)
 
     // Original mit allen Spuren => direkter Datei-Download, sonst Remux/Transcode ueber den Server
     public bool NeedsServerProcessing => Quality != "Original" || AudioStreamIndex != null || SubtitleStreamIndex != null;
@@ -34,6 +35,13 @@ public class MediaStreamInfo
 {
     public string MediaSourceId { get; set; }
     public int Height { get; set; }
+    public int Width { get; set; }
+    public long SizeBytes { get; set; }
+    public string Container { get; set; }
+    public string VideoCodec { get; set; }
+    public string VideoRange { get; set; }   // z.B. SDR, HDR10, DolbyVision
+    public long RunTimeTicks { get; set; }
+    public int AudioChannels { get; set; }   // Kanaele der ersten Tonspur
     public List<TrackOption> Audio { get; } = new();
     public List<TrackOption> Subtitles { get; } = new();
 }
@@ -87,6 +95,11 @@ public static class MediaStreamParser
         var source = sources[0];
         if (source.TryGetProperty("Id", out var id))
             info.MediaSourceId = id.GetString();
+        if (source.TryGetProperty("Container", out var cont)) info.Container = cont.GetString();
+        if (source.TryGetProperty("RunTimeTicks", out var rt) && rt.ValueKind == JsonValueKind.Number)
+            info.RunTimeTicks = rt.GetInt64();
+        if (source.TryGetProperty("Size", out var size) && size.ValueKind == JsonValueKind.Number)
+            info.SizeBytes = size.GetInt64();
 
         if (!source.TryGetProperty("MediaStreams", out var streams))
             return info;
@@ -102,8 +115,13 @@ public static class MediaStreamParser
             {
                 case "Video" when info.Height == 0 && s.TryGetProperty("Height", out var h) && h.ValueKind == JsonValueKind.Number:
                     info.Height = h.GetInt32();
+                    if (s.TryGetProperty("Width", out var w) && w.ValueKind == JsonValueKind.Number) info.Width = w.GetInt32();
+                    if (s.TryGetProperty("Codec", out var vc)) info.VideoCodec = vc.GetString();
+                    if (s.TryGetProperty("VideoRangeType", out var vr)) info.VideoRange = vr.GetString();
                     break;
                 case "Audio":
+                    if (info.Audio.Count == 0 && s.TryGetProperty("Channels", out var ch) && ch.ValueKind == JsonValueKind.Number)
+                        info.AudioChannels = ch.GetInt32();
                     info.Audio.Add(new TrackOption { Index = index, Language = DownloadDefaults.NormalizeLanguage(lang), Name = title ?? lang ?? $"Tonspur {index}" });
                     break;
                 case "Subtitle":
@@ -122,7 +140,7 @@ public static class MediaStreamParser
     public static DownloadOptions Resolve(MediaStreamInfo info, string quality, string audioLang, string subtitleLang, out bool complete)
     {
         complete = true;
-        var options = new DownloadOptions { MediaSourceId = info?.MediaSourceId };
+        var options = new DownloadOptions { MediaSourceId = info?.MediaSourceId, SourceSizeBytes = info?.SizeBytes ?? 0 };
         if (info == null) { complete = string.IsNullOrEmpty(quality) && string.IsNullOrEmpty(audioLang) && string.IsNullOrEmpty(subtitleLang); return options; }
 
         // Qualitaet
@@ -156,3 +174,11 @@ public static class MediaStreamParser
         return options;
     }
 }
+
+
+
+
+
+
+
+

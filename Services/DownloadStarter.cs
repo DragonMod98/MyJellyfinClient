@@ -91,11 +91,33 @@ public class DownloadStarter
             await _dbService.SaveOrUpdateMediaItemAsync(item);
 
             string url = BuildUrl(serverUrl, token, request);
-            _downloadManager.StartDownload(request.ItemId, url, request.Title);
+            _downloadManager.StartDownload(request.ItemId, url, request.Title, EstimateBytes(request));
             started++;
         }
 
         return started;
+    }
+
+    // Bei Server-Streams gibt es keine Content-Length: Groesse fuer die Fortschrittsanzeige schaetzen.
+    // Direkt-Download (Original) liefert die Laenge selbst, hier wird dann 0 zurueckgegeben.
+    private static long EstimateBytes(DownloadRequest request)
+    {
+        var o = request.Options ?? new DownloadOptions();
+        if (!o.NeedsServerProcessing) return 0;
+
+        double seconds = request.RunTimeTicks / 10_000_000.0;
+        long bitsPerSecond = o.Quality switch
+        {
+            "1080p" => 10_000_000 + 192_000,
+            "720p" => 4_000_000 + 192_000,
+            _ => 0
+        };
+
+        if (bitsPerSecond > 0 && seconds > 0)
+            return (long)(seconds * bitsPerSecond / 8);
+
+        // Original-Qualitaet (Stream-Copy): ungefaehr die Dateigroesse des Originals
+        return o.SourceSizeBytes;
     }
 
     private static string BuildUrl(string serverUrl, string token, DownloadRequest request)
@@ -129,3 +151,5 @@ public class DownloadStarter
         return sb.ToString();
     }
 }
+
+

@@ -55,4 +55,13 @@ public class JellyfinUserData
     public long PlaybackPositionTicks { get; set; }
 }
 
+public class JellyfinItemDetails
+{
+    public string Overview { get; set; }
+    public int? ProductionYear { get; set; }
+    public double? CommunityRating { get; set; }
+    public string OfficialRating { get; set; }
+    public List<string> Genres { get; set; }
+    public long? RunTimeTicks { get; set; }
+}
 
