@@ -100,25 +100,6 @@ public class AutoDownloadManager
 
             int started = await _downloadStarter.StartAsync(requests);
             System.Diagnostics.Debug.WriteLine($"[AutoDownload] {requests.Count} Folge(n) angefragt, {started} gestartet");
-        }        catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[AutoDownload] PlaybackInfo fehlgeschlagen: {ex.Message}");
-            }
-
-            var request = new DownloadRequest
-            {
-                ItemId = next.Id,
-                Title = next.DisplayTitle,
-                SeriesName = next.SeriesName ?? watched.SeriesName,
-                SeasonName = next.SeasonName,
-                SeriesId = seriesId,
-                IsSeries = true,
-                RunTimeTicks = next.RunTimeTicks ?? 0,
-                Options = options
-            };
-
-            int started = await _downloadStarter.StartAsync(new[] { request });
-            System.Diagnostics.Debug.WriteLine($"[AutoDownload] {next.SeriesName} - {next.DisplayTitle}: Ergebnis {started}");
         }
         catch (Exception ex)
         {
