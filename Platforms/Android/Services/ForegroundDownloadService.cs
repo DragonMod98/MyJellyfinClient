@@ -5,6 +5,7 @@ using Android.OS;
 using AndroidX.Core.App;
 using MyJellyfinClient.Services; // Für LocalDatabaseService
 using Environment = Android.OS.Environment;
+using OperationCanceledException = Android.OS.OperationCanceledException;
 
 namespace MyJellyfinClient.Platforms.Android.Services;
 

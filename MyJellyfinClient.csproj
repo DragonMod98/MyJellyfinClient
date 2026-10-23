@@ -49,8 +49,14 @@
 
 	<ItemGroup>
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" Color="#10141D" ForegroundScale="0.65" 
+		<!-- MonochromeFile wird erst ab .NET MAUI 11 ausgewertet (siehe Target
+		     SetAndroidMonochromeIconLayer weiter unten). -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" Color="#10141D" ForegroundScale="0.65"
 				  MonochromeFile="Resources\AppIcon\appiconmonochrome.svg"/>
+
+		<!-- Monochromes Glyph zusätzlich als normales Bild, damit Resizetizer es
+		     als Drawable für die Themed-Icon-Ebene (Android 13+) erzeugt. -->
+		<MauiImage Include="Resources\AppIcon\appiconmonochrome.svg" BaseSize="108,108" />
 
 		<!-- Splash Screen -->
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#000b26" BaseSize="128,128" />
@@ -97,6 +103,31 @@
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	</ItemGroup>
+
+	<!--
+		Android 13+ Themed Icons (u. a. NothingOS Monochrommodus):
+		.NET MAUI 10 kennt das MonochromeFile-Attribut noch nicht und setzt als
+		<monochrome>-Ebene stattdessen das farbige Foreground-Bild ein. Da dieses
+		Bild die komplette Fläche ausfüllt, ergibt die Maskierung einen einfarbig
+		gefüllten Kreis. Nach dem Resizetizer-Lauf wird die Ebene deshalb auf das
+		monochrome Glyph umgebogen.
+	-->
+	<Target Name="SetAndroidMonochromeIconLayer"
+			AfterTargets="ResizetizeImages"
+			Condition="'$(_ResizetizerPlatformIsAndroid)' == 'True'">
+		<ItemGroup>
+			<_MauiAdaptiveIconXml Include="$(_MauiIntermediateImages)mipmap-anydpi-v26\*.xml" />
+		</ItemGroup>
+		<PropertyGroup>
+			<_MauiAdaptiveIconContent>&lt;adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"&gt;&lt;background android:drawable="@mipmap/@(MauiIcon->'%(Filename)')_background" /&gt;&lt;foreground android:drawable="@mipmap/@(MauiIcon->'%(Filename)')_foreground" /&gt;&lt;monochrome android:drawable="@drawable/appiconmonochrome_inset" /&gt;&lt;/adaptive-icon&gt;</_MauiAdaptiveIconContent>
+		</PropertyGroup>
+		<WriteLinesToFile
+			Condition="'@(_MauiAdaptiveIconXml)' != ''"
+			File="%(_MauiAdaptiveIconXml.Identity)"
+			Lines="$(_MauiAdaptiveIconContent)"
+			Overwrite="true"
+			WriteOnlyWhenDifferent="true" />
+	</Target>
 
 	<!-- Workaround für den Refit.Reflection TrimmerRootAssembly Bug im Android Release -->
 	<Target Name="FixRefitTrimmerAndroid" AfterTargets="ResolveReferences">

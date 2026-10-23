@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Monochrome Ebene für Themed Icons (Android 13+) / NothingOS-Monochrommodus.
+    Das Glyph füllt in der Quelldatei ca. 80 % der 108dp-Ebene. Der Inset skaliert
+    es auf ca. 65dp, damit es innerhalb der 66dp-Safe-Zone der adaptiven Icon-Maske
+    bleibt und nicht abgeschnitten wird.
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/appiconmonochrome"
+    android:insetLeft="13.5dp"
+    android:insetTop="13.5dp"
+    android:insetRight="13.5dp"
+    android:insetBottom="13.5dp" />
