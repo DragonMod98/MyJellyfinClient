@@ -92,6 +92,14 @@ public partial class LibraryViewModel : ObservableObject
 
             var response = new JellyfinItemsResponse();
 
+            // Offline Gesehenes zuerst melden, damit die Anzeige den aktuellen Stand hat
+            var sync = IPlatformApplication.Current?.Services.GetService<SyncEngine>();
+            if (sync != null)
+            {
+                try { await sync.SyncPendingItemsAsync(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Sync fehlgeschlagen: {ex.Message}"); }
+            }
+
             if (string.IsNullOrEmpty(parentId))
             {
                 response = await _apiService.GetLibraryItemsAsync(authHeader, userId);

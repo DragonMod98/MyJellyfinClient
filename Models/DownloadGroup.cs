@@ -26,6 +26,7 @@ public class DownloadGroup : ObservableCollection<LocalMediaItem>
     }
 
     public string Name { get; }
+    public IReadOnlyList<LocalMediaItem> AllItems => _all;
     public bool IsSeries { get; }
 
     public bool IsExpanded => _isExpanded;

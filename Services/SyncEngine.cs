@@ -46,11 +46,12 @@ public class SyncEngine
                 return;
 
             string currentUserId = _settings.UserId;
-            string currentAuthToken = await _settings.GetAuthTokenAsync();
-            currentAuthToken = $"MediaBrowser Token=\"{currentAuthToken}\"";
+            string rawToken = await _settings.GetAuthTokenAsync();
 
-            if (string.IsNullOrEmpty(currentUserId) || string.IsNullOrEmpty(currentAuthToken))
+            if (string.IsNullOrEmpty(currentUserId) || string.IsNullOrEmpty(rawToken))
                 return; // Abbruch, wenn nicht eingeloggt
+
+            string currentAuthToken = $"MediaBrowser Token=\"{rawToken}\"";
 
             foreach (var item in pendingItems)
             {
@@ -72,12 +73,16 @@ public class SyncEngine
                             SessionId = Guid.NewGuid().ToString() // Jellyfin erwartet oft eine Session-ID
                         };
 
-                        await _apiService.ReportPlaybackProgressAsync(currentAuthToken, progressInfo);
+                        await _apiService.ReportPlaybackStoppedAsync(currentAuthToken, progressInfo);
                     }
 
                     // Bei Erfolg: Lokales Sync-Flag entfernen und in DB speichern
                     item.NeedsSyncToServer = false;
                     await _dbService.SaveOrUpdateMediaItemAsync(item);
+
+                    // Zwischenzeitlich geloeschte Eintraege (nur noch fuer den Sync behalten) jetzt entfernen
+                    if (!item.IsDownloaded)
+                        await _dbService.DeleteMediaItemAsync(item.JellyfinItemId);
                 }
                 catch (Exception ex)
                 {

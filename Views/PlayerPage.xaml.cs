@@ -118,6 +118,17 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         try { await SaveProgressAsync(); }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Fortschritt speichern fehlgeschlagen: {ex.Message}"); }
 
+        // Gesehen-Status/Position direkt an Jellyfin melden (bei fehlender Verbindung spaeter per Sync)
+        var sync = IPlatformApplication.Current?.Services.GetService<SyncEngine>();
+        if (sync != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await sync.SyncPendingItemsAsync(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Sync fehlgeschlagen: {ex.Message}"); }
+            });
+        }
+
         // Das MediaPlayerElement darf den Player nicht mehr verwenden (sonst nativer VLC-Crash)
         VideoPlayer.MediaPlayer = null;
         _playerReleased = true;

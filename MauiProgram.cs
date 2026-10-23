@@ -58,7 +58,14 @@ namespace MyJellyfinClient
             var app = builder.Build();
 
             // Initialisiert die SyncEngine direkt beim App-Start, damit der Event-Listener aktiv ist
-            app.Services.GetService<SyncEngine>();
+            var syncEngine = app.Services.GetService<SyncEngine>();
+
+            // Offline angesehene Medien beim App-Start zu Jellyfin melden (falls Server erreichbar)
+            _ = Task.Run(async () =>
+            {
+                try { await syncEngine?.SyncPendingItemsAsync(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Start-Sync fehlgeschlagen: {ex.Message}"); }
+            });
 
             return app;
         }

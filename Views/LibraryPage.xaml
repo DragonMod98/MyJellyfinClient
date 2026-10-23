@@ -83,11 +83,57 @@
                         </Border.GestureRecognizers>
 
                         <Grid RowDefinitions="*, Auto">
-                            <!--  Film Poster laden  -->
-                            <Image
-                                Grid.Row="0"
-                                Aspect="AspectFill"
-                                Source="{Binding ImageUrl}" />
+                            <!--  Film Poster laden + Gesehen-Status aus Jellyfin  -->
+                            <Grid Grid.Row="0">
+                                <Image Aspect="AspectFill" Source="{Binding ImageUrl}" />
+
+                                <!--  Gesehen: Haken  -->
+                                <Border
+                                    Margin="4"
+                                    BackgroundColor="#2E7D32"
+                                    HeightRequest="24"
+                                    HorizontalOptions="End"
+                                    IsVisible="{Binding ShowPlayedBadge}"
+                                    StrokeShape="RoundRectangle 12"
+                                    VerticalOptions="Start"
+                                    WidthRequest="24">
+                                    <Label
+                                        FontAttributes="Bold"
+                                        FontSize="14"
+                                        HorizontalOptions="Center"
+                                        Text="✓"
+                                        TextColor="White"
+                                        VerticalOptions="Center" />
+                                </Border>
+
+                                <!--  Noch ungesehene Folgen (Serie/Staffel)  -->
+                                <Border
+                                    Margin="4"
+                                    BackgroundColor="#AA5CC3"
+                                    HeightRequest="24"
+                                    HorizontalOptions="End"
+                                    IsVisible="{Binding ShowUnplayedBadge}"
+                                    MinimumWidthRequest="24"
+                                    StrokeShape="RoundRectangle 12"
+                                    VerticalOptions="Start">
+                                    <Label
+                                        Padding="6,0"
+                                        FontAttributes="Bold"
+                                        FontSize="12"
+                                        HorizontalOptions="Center"
+                                        Text="{Binding UnplayedCount}"
+                                        TextColor="White"
+                                        VerticalOptions="Center" />
+                                </Border>
+
+                                <!--  Angefangen: Fortschrittsbalken  -->
+                                <ProgressBar
+                                    HeightRequest="4"
+                                    IsVisible="{Binding ShowWatchProgress}"
+                                    Progress="{Binding WatchProgress}"
+                                    ProgressColor="#E5A00D"
+                                    VerticalOptions="End" />
+                            </Grid>
 
                             <!--  Halbtransparenter Titel unten am Poster  -->
                             <Border

@@ -10,6 +10,10 @@ public interface IJellyfinApiService
     [Post("/Sessions/Playing/Progress")]
     Task ReportPlaybackProgressAsync([Header("Authorization")] string authHeader, [Body] PlaybackProgressInfo progressInfo);
 
+    // Beendet eine Wiedergabe und speichert die Position (funktioniert auch ohne vorherigen Session-Start)
+    [Post("/Sessions/Playing/Stopped")]
+    Task ReportPlaybackStoppedAsync([Header("Authorization")] string authHeader, [Body] PlaybackProgressInfo progressInfo);
+
     // Markiert einen Film oder eine Episode vollständig als "Gesehen"
     [Post("/Users/{userId}/PlayedItems/{itemId}")]
     Task MarkItemAsWatchedAsync([Header("Authorization")] string authHeader, string userId, string itemId);
@@ -23,10 +27,11 @@ public interface IJellyfinApiService
     Task<NextUpResponse> GetNextUpAsync([Header("Authorization")] string authHeader, string userId, string seriesId);
 
     // Holt die neuesten Filme und Serien des Nutzers
-    [Get("/Users/{userId}/Items")]
+    [Get("/Users/{userId}/Items?EnableUserData=true&Fields=RunTimeTicks")]
     Task<JellyfinItemsResponse> GetLibraryItemsAsync([Header("Authorization")] string authHeader, string userId);
 
     // Holt die Elemente des Unterordners
-    [Get("/Users/{userId}/Items?ParentId={selectedFolderId}")]
+    [Get("/Users/{userId}/Items?ParentId={selectedFolderId}&EnableUserData=true&Fields=RunTimeTicks")]
     Task<JellyfinItemsResponse> GetFolderItemsAsync([Header("Authorization")] string authHeader, string userId, string selectedFolderId);
 }
+

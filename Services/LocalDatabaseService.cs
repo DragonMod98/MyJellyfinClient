@@ -82,6 +82,27 @@ public class LocalDatabaseService
         }
     }
 
+    public async Task DeleteMediaItemAsync(string itemId)
+    {
+        await InitAsync();
+        var item = await GetMediaItemAsync(itemId);
+        if (item == null) return;
+
+        if (item.NeedsSyncToServer)
+        {
+            // Gesehen-Status noch nicht zu Jellyfin gemeldet: Eintrag ohne Datei behalten,
+            // bis der Sync durch ist (wird in der Download-Liste nicht mehr angezeigt).
+            item.IsDownloaded = false;
+            item.LocalFilePath = null;
+            item.FileSizeBytes = 0;
+            await _database.UpdateAsync(item);
+        }
+        else
+        {
+            await _database.DeleteAsync<LocalMediaItem>(itemId);
+        }
+    }
+
     // --- Storage Analyzer Helper ---
 
     public async Task<long> GetTotalUsedStorageBytesAsync()
@@ -91,3 +112,4 @@ public class LocalDatabaseService
         return downloadedItems.Sum(i => i.FileSizeBytes);
     }
 }
+

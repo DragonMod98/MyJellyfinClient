@@ -39,8 +39,14 @@
 
             <CollectionView.GroupHeaderTemplate>
                 <DataTemplate>
+                    <SwipeView Margin="0,0,0,8">
+                    <SwipeView.RightItems>
+                        <SwipeItems Mode="Execute">
+                            <SwipeItem BackgroundColor="#C0392B" Text="Löschen" Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteGroupCommand}" CommandParameter="{Binding .}" />
+                        </SwipeItems>
+                    </SwipeView.RightItems>
                     <Border
-                        Margin="0,0,0,8"
+                        Margin="0"
                         Padding="12"
                         BackgroundColor="#1B2230"
                         StrokeShape="RoundRectangle 10">
@@ -78,13 +84,21 @@
                                 ProgressColor="{StaticResource Primary}" />
                         </Grid>
                     </Border>
+                    </SwipeView>
                 </DataTemplate>
             </CollectionView.GroupHeaderTemplate>
 
             <CollectionView.ItemTemplate>
                 <DataTemplate>
+                    <SwipeView Margin="12,0,0,10" BackgroundColor="#10141D">
+                    <SwipeView.RightItems>
+                        <SwipeItems Mode="Reveal">
+                            <SwipeItem BackgroundColor="#C0392B" Text="Löschen" Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteItemCommand}" CommandParameter="{Binding .}" />
+                            <SwipeItem BackgroundColor="#8E2C20" Text="Staffel löschen" IsVisible="{Binding IsSeries}" Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteSeasonCommand}" CommandParameter="{Binding .}" />
+                        </SwipeItems>
+                    </SwipeView.RightItems>
                     <Grid
-                        Margin="12,0,0,10"
+                        Margin="0"
                         ColumnDefinitions="*,Auto"
                         RowDefinitions="Auto,Auto,Auto,Auto">
                         <Grid.GestureRecognizers>
@@ -126,8 +140,10 @@
                             Text="{Binding ProgressText}"
                             TextColor="{StaticResource TextColorSecondary}" />
                     </Grid>
+                    </SwipeView>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
     </Grid>
 </ContentPage>
+

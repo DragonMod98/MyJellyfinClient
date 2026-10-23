@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive Icon mit echtem Monochrome-Layer (Themed Icons / NothingOS Launcher).
+     Hintergrund und Vordergrund stammen weiterhin aus dem generierten MauiIcon. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+  <background android:drawable="@mipmap/appicon_background" />
+  <foreground android:drawable="@mipmap/appicon_foreground" />
+  <monochrome>
+    <inset
+      android:drawable="@drawable/appicon_mono_layer"
+      android:insetLeft="17.5%"
+      android:insetTop="17.5%"
+      android:insetRight="17.5%"
+      android:insetBottom="17.5%" />
+  </monochrome>
+</adaptive-icon>

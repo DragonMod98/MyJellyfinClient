@@ -23,7 +23,19 @@ public class PlaybackProgressInfo
         public string SeriesName { get; set; }
         public string SeasonName { get; set; }
         public int? IndexNumber { get; set; }        // Folgennummer
-        public long? RunTimeTicks { get; set; }      // Laufzeit (fuer den Fortschrittsbalken)
+        public long? RunTimeTicks { get; set; }
+        public JellyfinUserData UserData { get; set; }
+
+        // Anzeige-Hilfen fuer die Bibliothek (Gesehen-Status aus Jellyfin)
+        public bool IsPlayed => UserData?.Played == true;
+        public int UnplayedCount => UserData?.UnplayedItemCount ?? 0;
+        // Haken: gesehen (Film/Folge/komplette Staffel)
+        public bool ShowPlayedBadge => IsPlayed;
+        // Zaehler: Ordner/Serie/Staffel mit noch ungesehenen Folgen
+        public bool ShowUnplayedBadge => !IsPlayed && UnplayedCount > 0;
+        // Fortschritt bei angefangenen Filmen/Folgen (0..1)
+        public double WatchProgress => IsPlayed ? 0 : Math.Clamp((UserData?.PlayedPercentage ?? 0) / 100.0, 0, 1);
+        public bool ShowWatchProgress => WatchProgress > 0;
         public string Type { get; set; } // z.B. "Movie" oder "Series"
         public bool IsFolder { get; set; }
 
@@ -34,3 +46,13 @@ public class PlaybackProgressInfo
         public string ImageUrl { get; set; }
     }
 }
+
+public class JellyfinUserData
+{
+    public bool Played { get; set; }
+    public double? PlayedPercentage { get; set; }
+    public int? UnplayedItemCount { get; set; }
+    public long PlaybackPositionTicks { get; set; }
+}
+
+

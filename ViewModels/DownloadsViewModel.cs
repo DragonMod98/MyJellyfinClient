@@ -19,6 +19,58 @@ public partial class DownloadsViewModel : ObservableObject
 
     public ObservableCollection<DownloadGroup> DownloadGroups { get; } = new();
 
+    private async Task DeleteItemsAsync(IList<LocalMediaItem> items, string question)
+    {
+        if (items.Count == 0) return;
+        if (!await Shell.Current.DisplayAlert("Löschen", question, "Löschen", "Abbrechen")) return;
+
+        // Offen gebliebenen Gesehen-Status vor dem Loeschen zu Jellyfin melden.
+        // Klappt das nicht (offline), bleibt er in der DB und wird spaeter synchronisiert.
+        var sync = IPlatformApplication.Current?.Services.GetService<SyncEngine>();
+        if (sync != null)
+        {
+            try { await sync.SyncPendingItemsAsync(); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Sync vor dem Loeschen fehlgeschlagen: {ex.Message}"); }
+        }
+
+        foreach (var item in items)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(item.LocalFilePath) && File.Exists(item.LocalFilePath))
+                    File.Delete(item.LocalFilePath);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Datei loeschen fehlgeschlagen: {ex.Message}");
+            }
+            await _dbService.DeleteMediaItemAsync(item.JellyfinItemId);
+        }
+
+        await LoadDownloadsAsync();
+    }
+
+    // Einzelne Folge / einzelner Film
+    [RelayCommand]
+    private Task DeleteItemAsync(LocalMediaItem item) =>
+        item == null ? Task.CompletedTask : DeleteItemsAsync(new[] { item }, $"\"{item.Title}\" vom Gerät löschen?");
+
+    // Alle Folgen derselben Staffel
+    [RelayCommand]
+    private Task DeleteSeasonAsync(LocalMediaItem item)
+    {
+        if (item == null) return Task.CompletedTask;
+        var all = DownloadGroups.SelectMany(g => g.AllItems)
+            .Where(i => i.SeriesName == item.SeriesName && i.SeasonName == item.SeasonName).ToList();
+        string name = string.IsNullOrEmpty(item.SeasonName) ? item.SeriesName : $"{item.SeriesName} – {item.SeasonName}";
+        return DeleteItemsAsync(all, $"{all.Count} Download(s) von \"{name}\" löschen?");
+    }
+
+    // Ganze Serie bzw. alle Filme
+    [RelayCommand]
+    private Task DeleteGroupAsync(DownloadGroup group) =>
+        group == null ? Task.CompletedTask : DeleteItemsAsync(group.AllItems.ToList(), $"\"{group.Name}\" ({group.TotalCount} Download(s)) löschen?");
+
     [RelayCommand]
     private void ToggleGroup(DownloadGroup group)
     {
