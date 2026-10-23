@@ -28,10 +28,10 @@
 		<MauiXamlInflator>SourceGen</MauiXamlInflator>
 
 		<!-- Display name -->
-		<ApplicationTitle>MyJellyfinClient</ApplicationTitle>
+		<ApplicationTitle>Jellyfin Offline-Downloader</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.companyname.myjellyfinclient</ApplicationId>
+		<ApplicationId>com.biller.myjellyfinclient</ApplicationId>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
