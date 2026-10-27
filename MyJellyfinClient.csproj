@@ -2,7 +2,7 @@
 
 	<PropertyGroup>
 		<TargetFrameworks>net10.0-android</TargetFrameworks>
-		<TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('linux'))">$(TargetFrameworks);net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
+		<!--<TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('linux'))">$(TargetFrameworks);net10.0-ios;net10.0-maccatalyst</TargetFrameworks>-->
 		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net10.0-windows10.0.19041.0</TargetFrameworks>
 
 		<!-- Note for MacCatalyst:
@@ -47,12 +47,30 @@
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-android|AnyCPU'">
+	  <AndroidPackageFormat>apk</AndroidPackageFormat>
+	  <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
+	  <ApplicationDisplayVersion>1.1.0</ApplicationDisplayVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net10.0-android|AnyCPU'">
+	  <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
+	  <ApplicationDisplayVersion>1.1.0</ApplicationDisplayVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net10.0-windows10.0.19041.0|AnyCPU'">
+	  <ApplicationDisplayVersion>1.1.0</ApplicationDisplayVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-windows10.0.19041.0|AnyCPU'">
+	  <ApplicationDisplayVersion>1.1.0</ApplicationDisplayVersion>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<!-- App Icon -->
 		<!-- MonochromeFile wird erst ab .NET MAUI 11 ausgewertet (siehe Target
 		     SetAndroidMonochromeIconLayer weiter unten). -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" Color="#10141D" ForegroundScale="0.65"
-				  MonochromeFile="Resources\AppIcon\appiconmonochrome.svg"/>
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" Color="#10141D" ForegroundScale="0.65" MonochromeFile="Resources\AppIcon\appiconmonochrome.svg" />
 
 		<!-- Monochromes Glyph zusätzlich als normales Bild, damit Resizetizer es
 		     als Drawable für die Themed-Icon-Ebene (Android 13+) erzeugt. -->
@@ -112,21 +130,14 @@
 		gefüllten Kreis. Nach dem Resizetizer-Lauf wird die Ebene deshalb auf das
 		monochrome Glyph umgebogen.
 	-->
-	<Target Name="SetAndroidMonochromeIconLayer"
-			AfterTargets="ResizetizeImages"
-			Condition="'$(_ResizetizerPlatformIsAndroid)' == 'True'">
+	<Target Name="SetAndroidMonochromeIconLayer" AfterTargets="ResizetizeImages" Condition="'$(_ResizetizerPlatformIsAndroid)' == 'True'">
 		<ItemGroup>
 			<_MauiAdaptiveIconXml Include="$(_MauiIntermediateImages)mipmap-anydpi-v26\*.xml" />
 		</ItemGroup>
 		<PropertyGroup>
 			<_MauiAdaptiveIconContent>&lt;adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"&gt;&lt;background android:drawable="@mipmap/@(MauiIcon->'%(Filename)')_background" /&gt;&lt;foreground android:drawable="@mipmap/@(MauiIcon->'%(Filename)')_foreground" /&gt;&lt;monochrome android:drawable="@drawable/appiconmonochrome_inset" /&gt;&lt;/adaptive-icon&gt;</_MauiAdaptiveIconContent>
 		</PropertyGroup>
-		<WriteLinesToFile
-			Condition="'@(_MauiAdaptiveIconXml)' != ''"
-			File="%(_MauiAdaptiveIconXml.Identity)"
-			Lines="$(_MauiAdaptiveIconContent)"
-			Overwrite="true"
-			WriteOnlyWhenDifferent="true" />
+		<WriteLinesToFile Condition="'@(_MauiAdaptiveIconXml)' != ''" File="%(_MauiAdaptiveIconXml.Identity)" Lines="$(_MauiAdaptiveIconContent)" Overwrite="true" WriteOnlyWhenDifferent="true" />
 	</Target>
 
 	<!-- Workaround für den Refit.Reflection TrimmerRootAssembly Bug im Android Release -->
