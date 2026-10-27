@@ -16,14 +16,10 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
 
     private readonly StorageManager _storageManager;
     private readonly AutoDownloadManager _autoDownloadManager;
-    private string _seriesId; // Wird optional per Query-Parameter "seriesId" übergeben
     private bool _autoActionsTriggered = false; // Verhindert mehrfaches Triggern
 
     // Status der Gesten
     private float _currentBrightness = 0.5f;
-    private int _startVolume;
-    private long _startSeekTime;
-    private bool _isHorizontalSwipe;
 
     // Parameter (videoPath, itemId) kommen per Shell-Navigation, nicht per Dependency Injection
     public PlayerPage(
@@ -56,9 +52,6 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
     {
         if (query.TryGetValue("itemId", out var id))
             _itemId = id?.ToString();
-
-        if (query.TryGetValue("seriesId", out var sid))
-            _seriesId = sid?.ToString();
 
         if (query.TryGetValue("videoPath", out var path) && path is string videoPath)
         {
@@ -217,7 +210,6 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         }
     }
 
-    // --- Tippen blendet die VLC-Controls ein (blenden sich selbst wieder aus) ---
     // --- Doppeltippen: links 5 s zurueck, rechts 10 s vor ---
     private void SeekBy(long ms, string osd)
     {
@@ -231,6 +223,7 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
 
     private void OnRightDoubleTapped(object sender, TappedEventArgs e) => SeekBy(10000, "⏩ +10 s");
 
+    // Einfaches Tippen blendet die VLC-Controls ein (sie blenden sich selbst wieder aus)
     private void OnScreenTapped(object sender, TappedEventArgs e)
     {
         VideoPlayer.PlaybackControls?.Show();
@@ -248,10 +241,9 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         HandleGesture(e, isBrightness: false);
     }
 
-    // Eine volle Bildschirmbreite/-hoehe Wischen entspricht ca. 400 Einheiten fuer den gesamten Bereich
-    // (hoeher = unempfindlicher). Berechnet wird immer vom Startwert der Geste aus.
+    // Wischweg (in Einheiten), der dem gesamten Bereich 0-100 % entspricht (hoeher = unempfindlicher).
+    // Berechnet wird immer vom Startwert der Geste aus.
     private const double VerticalRange = 400.0;
-    private const double SeekMsPerUnit = 150.0;
 
     private float _startBrightness;
     private float _startSystemVolume;
@@ -261,24 +253,13 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         switch (e.StatusType)
         {
             case GestureStatus.Started:
-                _startSeekTime = _mediaPlayer.Time;
                 _startBrightness = _brightnessService.GetBrightness();
                 _startSystemVolume = _brightnessService.GetVolume();
-                _isHorizontalSwipe = false;
                 break;
 
             case GestureStatus.Running:
-                // Erkennung ob vertikales (Vol/Bright) oder horizontales (Seek) Wischen
-                if (!_isHorizontalSwipe && Math.Abs(e.TotalX) > Math.Abs(e.TotalY) && Math.Abs(e.TotalX) > 30)
-                {
-                    _isHorizontalSwipe = true;
-                }
-
-                if (_isHorizontalSwipe)
-                {
-                    // Spulen laeuft ueber Doppeltippen, horizontales Wischen wird ignoriert
-                }
-                else if (Math.Abs(e.TotalY) > 10) // kleine Bewegungen ignorieren
+                // Nur vertikales Wischen (Helligkeit/Lautstaerke); kleine Bewegungen ignorieren
+                if (Math.Abs(e.TotalY) > 10)
                 {
                     float delta = (float)(-e.TotalY / VerticalRange);
 
@@ -304,11 +285,11 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
                 break;
         }
     }
+
     private void ShowOsd(string text)
     {
         OsdText.Text = text;
         OsdContainer.IsVisible = true;
     }
 }
-
 
