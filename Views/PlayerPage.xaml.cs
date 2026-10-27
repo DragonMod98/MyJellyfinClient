@@ -95,11 +95,15 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         _mediaPlayer.Play();
         _trackingTimer.Start();
 
-        // Helligkeit initialisieren
-        _brightnessService.SetBrightness(_currentBrightness);
+        // Vollbild: Status- und Navigationsleiste ausblenden, Helligkeit vom aktuellen Wert aus steuern
+        PipState.IsPlayerActive = true;
+        PipState.ModeChanged += OnPipModeChanged;
+        PipState.Closed += OnPipClosed;
+        _brightnessService.SetImmersive(true);
+        _currentBrightness = _brightnessService.GetBrightness();
     }
 
-    private bool _isClosing;
+    // Im kleinen PiP-Fenster keine Gesten-Flaechen/Controls einblenden\r\n    private void OnPipModeChanged(bool inPip)\r\n    {\r\n        MainThread.BeginInvokeOnMainThread(() =>\r\n        {\r\n            GestureOverlay.IsVisible = !inPip;\r\n            OsdContainer.IsVisible = false;\r\n            if (inPip) VideoPlayer.PlaybackControls?.Hide();\r\n        });\r\n    }\r\n\r\n    // PiP-Fenster wurde geschlossen: Wiedergabe beenden und Seite verlassen\r\n    private void OnPipClosed()\r\n    {\r\n        MainThread.BeginInvokeOnMainThread(async () =>\r\n        {\r\n            try { await Shell.Current.GoToAsync(".."); } catch { }\r\n        });\r\n    }\r\n\r\n    private bool _isClosing;
     private bool _playerReleased;
 
     protected override async void OnDisappearing()
@@ -107,6 +111,13 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         base.OnDisappearing();
         if (_isClosing) return;
         _isClosing = true;
+
+        // Leisten wieder einblenden und Systemhelligkeit wiederherstellen
+        PipState.IsPlayerActive = false;
+        PipState.ModeChanged -= OnPipModeChanged;
+        PipState.Closed -= OnPipClosed;
+        _brightnessService.SetImmersive(false);
+        _brightnessService.ResetBrightness();
 
         _trackingTimer.Stop();
         _trackingTimer.Tick -= TrackingTimer_Tick;
@@ -187,6 +198,19 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
     }
 
     // --- Tippen blendet die VLC-Controls ein (blenden sich selbst wieder aus) ---
+    // --- Doppeltippen: links 5 s zurueck, rechts 10 s vor ---
+    private void SeekBy(long ms, string osd)
+    {
+        if (_playerReleased || _mediaPlayer.Length <= 0) return;
+        _mediaPlayer.Time = Math.Clamp(_mediaPlayer.Time + ms, 0, _mediaPlayer.Length);
+        ShowOsd(osd);
+        Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(700), () => OsdContainer.IsVisible = false);
+    }
+
+    private void OnLeftDoubleTapped(object sender, TappedEventArgs e) => SeekBy(-5000, "⏪ -5 s");
+
+    private void OnRightDoubleTapped(object sender, TappedEventArgs e) => SeekBy(10000, "⏩ +10 s");
+
     private void OnScreenTapped(object sender, TappedEventArgs e)
     {
         VideoPlayer.PlaybackControls?.Show();
@@ -204,47 +228,52 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         HandleGesture(e, isBrightness: false);
     }
 
+    // Eine volle Bildschirmbreite/-hoehe Wischen entspricht ca. 400 Einheiten fuer den gesamten Bereich
+    // (hoeher = unempfindlicher). Berechnet wird immer vom Startwert der Geste aus.
+    private const double VerticalRange = 400.0;
+    private const double SeekMsPerUnit = 150.0;
+
+    private float _startBrightness;
+    private float _startSystemVolume;
+
     private void HandleGesture(PanUpdatedEventArgs e, bool isBrightness)
     {
         switch (e.StatusType)
         {
             case GestureStatus.Started:
-                _startVolume = _mediaPlayer.Volume;
                 _startSeekTime = _mediaPlayer.Time;
+                _startBrightness = _brightnessService.GetBrightness();
+                _startSystemVolume = _brightnessService.GetVolume();
                 _isHorizontalSwipe = false;
                 break;
 
             case GestureStatus.Running:
                 // Erkennung ob vertikales (Vol/Bright) oder horizontales (Seek) Wischen
-                if (Math.Abs(e.TotalX) > Math.Abs(e.TotalY) && Math.Abs(e.TotalX) > 20)
+                if (!_isHorizontalSwipe && Math.Abs(e.TotalX) > Math.Abs(e.TotalY) && Math.Abs(e.TotalX) > 30)
                 {
                     _isHorizontalSwipe = true;
                 }
 
                 if (_isHorizontalSwipe)
                 {
-                    // Horizontal = Spulen
-                    long seekDelta = (long)(e.TotalX * 500); // 1px = 500ms
-                    _mediaPlayer.Time = Math.Clamp(_startSeekTime + seekDelta, 0, _mediaPlayer.Length);
-                    ShowOsd($"{(TimeSpan.FromMilliseconds(_mediaPlayer.Time)):hh\\:mm\\:ss}");
+                    // Spulen laeuft ueber Doppeltippen, horizontales Wischen wird ignoriert
                 }
-                else
+                else if (Math.Abs(e.TotalY) > 10) // kleine Bewegungen ignorieren
                 {
-                    // Vertikal = Helligkeit oder Lautstärke
+                    float delta = (float)(-e.TotalY / VerticalRange);
+
                     if (isBrightness)
                     {
-                        // Helligkeit anpassen (Y-Achse invertieren)
-                        float brightDelta = (float)(e.TotalY * -0.003);
-                        _currentBrightness = Math.Clamp(_currentBrightness + brightDelta, 0.01f, 1.0f);
+                        _currentBrightness = Math.Clamp(_startBrightness + delta, 0.01f, 1.0f);
                         _brightnessService.SetBrightness(_currentBrightness);
                         ShowOsd($"☀️ {(int)(_currentBrightness * 100)}%");
                     }
                     else
                     {
-                        // Lautstärke anpassen
-                        int volumeDelta = (int)(e.TotalY * -0.5);
-                        _mediaPlayer.Volume = Math.Clamp(_startVolume + volumeDelta, 0, 100);
-                        ShowOsd($"🔊 {_mediaPlayer.Volume}%");
+                        // Systemlautstaerke (Medien)
+                        float volume = Math.Clamp(_startSystemVolume + delta, 0f, 1f);
+                        _brightnessService.SetVolume(volume);
+                        ShowOsd($"🔊 {(int)(volume * 100)}%");
                     }
                 }
                 break;
@@ -255,10 +284,11 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
                 break;
         }
     }
-
     private void ShowOsd(string text)
     {
         OsdText.Text = text;
         OsdContainer.IsVisible = true;
     }
 }
+
+

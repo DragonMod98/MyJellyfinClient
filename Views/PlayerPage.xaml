@@ -1,4 +1,4 @@
-<ContentPage
+﻿<ContentPage
     x:Class="MyJellyfinClient.Views.PlayerPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
@@ -16,7 +16,7 @@
             VerticalOptions="Fill" />
 
         <!--  Overlay für die Gestensteuerung (unten Platz für die Player-Controls lassen)  -->
-        <Grid BackgroundColor="Transparent" Margin="0,0,0,140">
+        <Grid x:Name="GestureOverlay" BackgroundColor="Transparent" Margin="0,0,0,140">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <!--  Linke Hälfte: Helligkeit  -->
@@ -26,6 +26,7 @@
 
             <ContentView Grid.Column="0" BackgroundColor="Transparent">
                 <ContentView.GestureRecognizers>
+                    <TapGestureRecognizer NumberOfTapsRequired="2" Tapped="OnLeftDoubleTapped" />
                     <TapGestureRecognizer Tapped="OnScreenTapped" />
                     <PanGestureRecognizer PanUpdated="OnLeftScreenPanUpdated" />
                 </ContentView.GestureRecognizers>
@@ -33,6 +34,7 @@
 
             <ContentView Grid.Column="1" BackgroundColor="Transparent">
                 <ContentView.GestureRecognizers>
+                    <TapGestureRecognizer NumberOfTapsRequired="2" Tapped="OnRightDoubleTapped" />
                     <TapGestureRecognizer Tapped="OnScreenTapped" />
                     <PanGestureRecognizer PanUpdated="OnRightScreenPanUpdated" />
                 </ContentView.GestureRecognizers>
