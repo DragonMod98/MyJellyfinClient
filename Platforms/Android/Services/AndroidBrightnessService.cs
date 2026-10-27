@@ -5,6 +5,7 @@ using Android.Provider;
 using Android.Views;
 using AndroidX.Core.View;
 using MyJellyfinClient.Services;
+using Stream = Android.Media.Stream;
 
 namespace MyJellyfinClient.Platforms.Android.Services;
 

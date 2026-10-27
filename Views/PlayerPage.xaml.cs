@@ -103,7 +103,27 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         _currentBrightness = _brightnessService.GetBrightness();
     }
 
-    // Im kleinen PiP-Fenster keine Gesten-Flaechen/Controls einblenden\r\n    private void OnPipModeChanged(bool inPip)\r\n    {\r\n        MainThread.BeginInvokeOnMainThread(() =>\r\n        {\r\n            GestureOverlay.IsVisible = !inPip;\r\n            OsdContainer.IsVisible = false;\r\n            if (inPip) VideoPlayer.PlaybackControls?.Hide();\r\n        });\r\n    }\r\n\r\n    // PiP-Fenster wurde geschlossen: Wiedergabe beenden und Seite verlassen\r\n    private void OnPipClosed()\r\n    {\r\n        MainThread.BeginInvokeOnMainThread(async () =>\r\n        {\r\n            try { await Shell.Current.GoToAsync(".."); } catch { }\r\n        });\r\n    }\r\n\r\n    private bool _isClosing;
+    // Im kleinen PiP-Fenster keine Gesten-Flaechen/Controls einblenden
+    private void OnPipModeChanged(bool inPip)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            GestureOverlay.IsVisible = !inPip;
+            OsdContainer.IsVisible = false;
+            if (inPip) VideoPlayer.PlaybackControls?.Hide();
+        });
+    }
+
+    // PiP-Fenster wurde geschlossen: Wiedergabe beenden und Seite verlassen
+    private void OnPipClosed()
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try { await Shell.Current.GoToAsync(".."); } catch { }
+        });
+    }
+
+    private bool _isClosing;
     private bool _playerReleased;
 
     protected override async void OnDisappearing()
