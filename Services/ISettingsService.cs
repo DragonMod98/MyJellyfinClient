@@ -12,6 +12,9 @@ public interface ISettingsService
     string DefaultAudioLanguage { get; set; }
     string DefaultSubtitleLanguage { get; set; }
 
+    // Wiedergabe: "" = integrierter VLC-Player, "system" = Standard-App des Geraets, sonst Paketname der Player-App
+    string PlayerPackage { get; set; }
+
     // AuthTokens sollten asynchron über SecureStorage geladen werden
     Task<string> GetAuthTokenAsync();
     Task SetAuthTokenAsync(string token);

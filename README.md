@@ -26,6 +26,10 @@ Kompakte Info-Chips: Laufzeit, Qualität des Originals (Auflösung, Codec, HDR),
 - **Gesten:** links vertikal wischen = Helligkeit, rechts vertikal wischen = Systemlautstärke. Doppeltippen rechts = 10 s vor, links = 5 s zurück. Ein Tipp blendet die Controls ein.
 - **Bild-im-Bild:** Beim Verlassen der App läuft das Video in einem kleinen Fenster weiter (Android 8+).
 - Fortschritt wird alle 5 Sekunden lokal gespeichert.
+- **Ton und Untertitel:** Ein Tipp auf den Bildschirm blendet oben rechts „Ton & Untertitel“ ein. Die Auswahl läuft über eigene Dialoge, weil die eingebaute Spurliste des VLC-Controls im Dunkeldesign unleserlich war.
+- **Player-Auswahl** (Einstellungen, Block „Wiedergabe“): integrierter VLC-Player, Standard-App des Geräts oder eine bestimmte installierte Player-App. Die Wahl wird gespeichert und nicht bei jeder Wiedergabe abgefragt. Bei externen Apps werden Fortschritt und Gesehen-Status nicht erfasst.
+- Die Wisch-Gesten für Helligkeit und Lautstärke haben links und rechts einen Randabstand, damit die Android-Zurück-Geste nicht gestört wird.
+- Bleibt das Bild schwarz (Ton läuft, aber keine Videoausgabe), startet der Player die Wiedergabe automatisch neu (bis zu dreimal).
 
 ### Automatisierungen
 - **Auto-Cleanup:** Titel ab 90 % gesehen werden vom Gerät gelöscht.

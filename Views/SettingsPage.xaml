@@ -81,6 +81,31 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!--  Wiedergabe: Player-Auswahl  -->
+            <Border
+                Padding="15"
+                BackgroundColor="#1B2230"
+                StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="15">
+                    <Label
+                        FontAttributes="Bold"
+                        FontSize="18"
+                        Text="Wiedergabe"
+                        TextColor="White" />
+                    <Label
+                        FontSize="12"
+                        Text="Mit einer externen Player-App werden Fortschritt und Gesehen-Status nicht gespeichert und nicht mit Jellyfin synchronisiert."
+                        TextColor="#A0A0A0" />
+                    <Label FontSize="14" Text="Video-Player" TextColor="#A0A0A0" />
+                    <Picker
+                        BackgroundColor="#2D323E"
+                        ItemDisplayBinding="{Binding Name}"
+                        ItemsSource="{Binding PlayerChoices}"
+                        SelectedItem="{Binding SelectedPlayer}"
+                        TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+
             <!--  Download-Vorgaben  -->
             <Border
                 Padding="15"

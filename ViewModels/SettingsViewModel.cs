@@ -36,9 +36,24 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private ChoiceOption selectedSubtitle;
 
-    public SettingsViewModel(ISettingsService settingsService)
+    // Wiedergabe: integrierter VLC-Player, Standard-App des Geraets oder eine bestimmte installierte Player-App
+    public IReadOnlyList<ChoiceOption> PlayerChoices { get; }
+
+    [ObservableProperty]
+    private ChoiceOption selectedPlayer;
+
+    public SettingsViewModel(ISettingsService settingsService, IExternalPlayerService externalPlayers)
     {
         _settingsService = settingsService;
+
+        var players = new List<ChoiceOption>
+        {
+            new(PlayerChoice.BuiltIn, "Integrierter Player (VLC)"),
+            new(PlayerChoice.System, "Standard-App des Geräts")
+        };
+        players.AddRange(externalPlayers.GetInstalledPlayers());
+        PlayerChoices = players;
+        SelectedPlayer = players.FirstOrDefault(p => p.Code == _settingsService.PlayerPackage) ?? players[0];
         AutoDownloadNext = _settingsService.AutoDownloadNextEpisode;
         SelectedQuality = QualityChoices.FirstOrDefault(c => c.Code == _settingsService.DefaultQuality) ?? DownloadDefaults.NoDefault;
         SelectedAudio = AudioChoices.FirstOrDefault(c => c.Code == _settingsService.DefaultAudioLanguage) ?? DownloadDefaults.NoDefault;
@@ -64,6 +79,7 @@ public partial class SettingsViewModel : ObservableObject
         _settingsService.DefaultQuality = SelectedQuality?.Code;
         _settingsService.DefaultAudioLanguage = SelectedAudio?.Code;
         _settingsService.DefaultSubtitleLanguage = SelectedSubtitle?.Code;
+        _settingsService.PlayerPackage = SelectedPlayer?.Code;
         await _settingsService.SetAuthTokenAsync(AuthTokenInput);
 
         IPlatformApplication.Current?.Services.GetService<ServerConnectionService>()?.ResetCache();

@@ -32,6 +32,12 @@ public class SettingsService : ISettingsService
         set => Preferences.Default.Set(nameof(DefaultQuality), value ?? string.Empty);
     }
 
+    public string PlayerPackage
+    {
+        get => Preferences.Default.Get(nameof(PlayerPackage), string.Empty);
+        set => Preferences.Default.Set(nameof(PlayerPackage), value ?? string.Empty);
+    }
+
     public string DefaultAudioLanguage
     {
         get => Preferences.Default.Get(nameof(DefaultAudioLanguage), string.Empty);

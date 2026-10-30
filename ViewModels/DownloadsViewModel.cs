@@ -101,8 +101,9 @@ public partial class DownloadsViewModel : ObservableObject
     [ObservableProperty]
     private bool isLoading;
 
-    public DownloadsViewModel(LocalDatabaseService dbService, ISettingsService settingsService, IDownloadManager downloadManager)
+    public DownloadsViewModel(LocalDatabaseService dbService, ISettingsService settingsService, IDownloadManager downloadManager, IExternalPlayerService externalPlayer)
     {
+        _externalPlayer = externalPlayer;
         _dbService = dbService;
         _settingsService = settingsService;
         _downloadManager = downloadManager;
@@ -113,6 +114,7 @@ public partial class DownloadsViewModel : ObservableObject
     }
 
     private readonly IDownloadManager _downloadManager;
+    private readonly IExternalPlayerService _externalPlayer;
 
     public ObservableCollection<ActiveDownload> ActiveDownloads => DownloadTracker.Items;
 
@@ -211,6 +213,16 @@ public partial class DownloadsViewModel : ObservableObject
         {
             await Shell.Current.DisplayAlert("Fehler", "Die physische Videodatei wurde nicht gefunden.", "OK");
             return;
+        }
+
+        // Gewaehlte externe Player-App (Einstellungen): Video dort oeffnen statt im integrierten VLC-Player
+        string playerPackage = _settingsService.PlayerPackage;
+        if (playerPackage != PlayerChoice.BuiltIn)
+        {
+            if (_externalPlayer.Play(selectedItem.LocalFilePath, selectedItem.Title, playerPackage))
+                return;
+
+            await Shell.Current.DisplayAlert("Player", "Die gewählte Player-App konnte nicht gestartet werden. Es wird der integrierte Player verwendet.", "OK");
         }
 
         // Parameter vorbereiten: Wir übergeben dem Player den Pfad zur lokalen .mp4 Datei 

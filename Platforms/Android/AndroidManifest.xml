@@ -6,4 +6,11 @@
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+	<!-- Sichtbarkeit fuer Video-Player-Apps (Android 11+), damit sie in den Einstellungen aufgelistet werden koennen -->
+	<queries>
+		<intent>
+			<action android:name="android.intent.action.VIEW" />
+			<data android:mimeType="video/*" />
+		</intent>
+	</queries>
 </manifest>

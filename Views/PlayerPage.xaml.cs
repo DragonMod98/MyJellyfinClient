@@ -1,4 +1,5 @@
 ﻿using LibVLCSharp.Shared;
+using LibVLCSharp.Shared.Structures;
 using MyJellyfinClient.Services;
 
 namespace MyJellyfinClient.Views;
@@ -30,6 +31,11 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         ISettingsService settings)
     {
         InitializeComponent();
+
+        // Die eingebaute Spurliste des VLC-Controls ist hier nicht lesbar (dunkler Text auf dunklem Grund).
+        // Stattdessen gibt es die eigene Auswahl ("Ton & Untertitel").
+        if (VideoPlayer.PlaybackControls != null)
+            VideoPlayer.PlaybackControls.IsTracksButtonVisible = false;
         _dbService = dbService;
         _brightnessService = brightnessService;
         _storageManager = storageManager;
@@ -83,10 +89,13 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
             _mediaPlayer.Media?.AddOption($":start-time={startSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}");
         }
 
-        // Fix fuer schwarzes Bild beim Start: Surface/View einmal kurz neu anbinden / erzwingen
-        var currentMedia = _mediaPlayer.Media;
-        _mediaPlayer.Media = null;
-        _mediaPlayer.Media = currentMedia;
+        // Schwarzes Bild vermeiden: Die Video-Oberflaeche (Surface) entsteht asynchron. Startet VLC zu frueh,
+        // laeuft nur der Ton. Daher nach dem Start pruefen, ob eine Videoausgabe existiert, sonst neu starten.
+        _mediaPlayer.Playing += OnMediaPlaying;
+
+        // Kurz warten, damit die Seite samt Video-Oberflaeche aufgebaut ist
+        await Task.Delay(300);
+        if (_playerReleased) return;
 
         _mediaPlayer.Play();
         _trackingTimer.Start();
@@ -99,12 +108,39 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         _currentBrightness = _brightnessService.GetBrightness();
     }
 
+    private int _videoRecoveryAttempts;
+
+    // Wird auf einem VLC-Thread aufgerufen: keine VLC-Aufrufe direkt hier, sondern in einem eigenen Task
+    private void OnMediaPlaying(object sender, EventArgs e)
+    {
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1500);
+            if (_playerReleased || _isClosing || _videoRecoveryAttempts >= 3) return;
+
+            // Es gibt eine Videospur, aber keine Videoausgabe => schwarzes Bild
+            if (_mediaPlayer.VideoTrackCount > 0 && _mediaPlayer.VoutCount == 0)
+            {
+                _videoRecoveryAttempts++;
+                long position = _mediaPlayer.Time;
+                System.Diagnostics.Debug.WriteLine($"Keine Videoausgabe, starte Wiedergabe neu (Versuch {_videoRecoveryAttempts})");
+
+                _mediaPlayer.Stop();
+                _mediaPlayer.Play();
+
+                await Task.Delay(500);
+                if (!_playerReleased && position > 0) _mediaPlayer.Time = position;
+            }
+        });
+    }
+
     // Im kleinen PiP-Fenster keine Gesten-Flaechen/Controls einblenden
     private void OnPipModeChanged(bool inPip)
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
             GestureOverlay.IsVisible = !inPip;
+            if (inPip) TracksButton.IsVisible = false;
             OsdContainer.IsVisible = false;
             if (inPip) VideoPlayer.PlaybackControls?.Hide();
         });
@@ -137,6 +173,7 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
 
         _trackingTimer.Stop();
         _trackingTimer.Tick -= TrackingTimer_Tick;
+        _mediaPlayer.Playing -= OnMediaPlaying;
 
         var player = _mediaPlayer;
         var libVlc = _libVLC;
@@ -226,11 +263,63 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
 
     private void OnRightDoubleTapped(object sender, TappedEventArgs e) => SeekBy(10000, "⏩ +10 s");
 
-    // Einfaches Tippen blendet die VLC-Controls ein (sie blenden sich selbst wieder aus)
+    // Einfaches Tippen blendet die VLC-Controls und den Button fuer Ton/Untertitel ein
     private void OnScreenTapped(object sender, TappedEventArgs e)
     {
         VideoPlayer.PlaybackControls?.Show();
+        ShowTracksButton();
     }
+
+    private int _tracksButtonToken;
+
+    private void ShowTracksButton()
+    {
+        TracksButton.IsVisible = true;
+        int token = ++_tracksButtonToken;
+        Dispatcher.DispatchDelayed(TimeSpan.FromSeconds(4), () =>
+        {
+            if (token == _tracksButtonToken) TracksButton.IsVisible = false;
+        });
+    }
+
+    private async void OnTracksClicked(object sender, EventArgs e)
+    {
+        _tracksButtonToken++; // Button bleibt sichtbar, solange ein Dialog offen ist
+        if (_playerReleased) return;
+
+        string kind = await DisplayActionSheet("Ton & Untertitel", "Abbrechen", null, "Tonspur", "Untertitel");
+        if (_playerReleased) return;
+
+        if (kind == "Tonspur")
+            await PickTrackAsync("Tonspur", _mediaPlayer.AudioTrackDescription, _mediaPlayer.AudioTrack, id => _mediaPlayer.SetAudioTrack(id));
+        else if (kind == "Untertitel")
+            await PickTrackAsync("Untertitel", _mediaPlayer.SpuDescription, _mediaPlayer.Spu, id => _mediaPlayer.SetSpu(id));
+
+        ShowTracksButton();
+    }
+
+    private async Task PickTrackAsync(string title, TrackDescription[] tracks, int currentId, Action<int> apply)
+    {
+        if (tracks == null || tracks.Length == 0)
+        {
+            await DisplayAlert(title, "Keine Spuren vorhanden.", "OK");
+            return;
+        }
+
+        var names = tracks.Select((t, i) => $"{(t.Id == currentId ? "✓ " : string.Empty)}{TrackName(t)}").ToArray();
+
+        // Gleiche Namen unterscheidbar machen, damit die Auswahl eindeutig zugeordnet werden kann
+        if (names.Distinct().Count() != names.Length)
+            names = names.Select((n, i) => $"{i + 1}. {n}").ToArray();
+
+        string selected = await DisplayActionSheet(title, "Abbrechen", null, names);
+        int index = Array.IndexOf(names, selected);
+        if (index >= 0 && !_playerReleased)
+            apply(tracks[index].Id);
+    }
+
+    private static string TrackName(TrackDescription track) =>
+        track.Id == -1 ? "Aus" : string.IsNullOrWhiteSpace(track.Name) ? $"Spur {track.Id}" : track.Name;
 
     // --- Gestensteuerung (Linke Bildschirmhälfte) ---
     private void OnLeftScreenPanUpdated(object sender, PanUpdatedEventArgs e)
