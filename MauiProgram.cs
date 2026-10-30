@@ -37,7 +37,6 @@ namespace MyJellyfinClient
             builder.Services.AddSingleton<SyncEngine>();
             builder.Services.AddSingleton<StorageManager>();
             builder.Services.AddSingleton<DownloadStarter>();
-            builder.Services.AddSingleton<IExternalPlayerService, MyJellyfinClient.Platforms.Android.Services.AndroidExternalPlayerService>();
             builder.Services.AddSingleton<AutoDownloadManager>();
 
             builder.Services.AddTransient<MyJellyfinClient.ViewModels.LibraryViewModel>();
@@ -53,6 +52,7 @@ namespace MyJellyfinClient
 
 #if ANDROID
             builder.Services.AddSingleton<MyJellyfinClient.Services.IDownloadManager, MyJellyfinClient.Platforms.Android.Services.AndroidDownloadManager>();
+            builder.Services.AddSingleton<IExternalPlayerService, MyJellyfinClient.Platforms.Android.Services.AndroidExternalPlayerService>();
             builder.Services.AddSingleton<IBrightnessService, MyJellyfinClient.Platforms.Android.Services.AndroidBrightnessService>();
 #endif
 
