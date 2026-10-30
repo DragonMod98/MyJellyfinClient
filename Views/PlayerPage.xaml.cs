@@ -79,11 +79,14 @@ public partial class PlayerPage : ContentPage, IQueryAttributable
         var item = await _dbService.GetMediaItemAsync(_itemId);
         if (item != null && item.ResumePositionTicks > 0 && !item.IsWatched)
         {
-            // Jellyfin Ticks (10.000.000 Ticks = 1 s). Ein Setzen von Time VOR dem Abspielen
-            // wird von VLC ignoriert, daher als Start-Option an das Medium haengen.
             double startSeconds = item.ResumePositionTicks / 10_000_000.0;
             _mediaPlayer.Media?.AddOption($":start-time={startSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}");
         }
+
+        // Fix fuer schwarzes Bild beim Start: Surface/View einmal kurz neu anbinden / erzwingen
+        var currentMedia = _mediaPlayer.Media;
+        _mediaPlayer.Media = null;
+        _mediaPlayer.Media = currentMedia;
 
         _mediaPlayer.Play();
         _trackingTimer.Start();
